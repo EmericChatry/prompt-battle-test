@@ -94,6 +94,8 @@
           </div>
         </div>
 
+        <div id="rankingBanner" class="ranking-banner hidden"><span><strong>Classement publié</strong><br><small>Le formateur vient de rendre les résultats visibles.</small></span><button class="tiny" id="openPublicRanking" type="button">Voir le classement</button></div>
+
         <div class="battle-layout">
           <div class="column">
             <article class="panel"><p class="panel-label">SITUATION</p><p id="challengeSituation"></p></article>
@@ -111,7 +113,7 @@
             <article class="panel form-panel">
               <label for="promptInput">Votre prompt final</label>
               <textarea id="promptInput" rows="9" placeholder="Écrivez ici le prompt que votre équipe souhaite soumettre…"></textarea>
-              <label for="resultInput">Résultat obtenu avec votre IA <span>(la sauvegarde Supabase des productions arrive à l’étape suivante)</span></label>
+              <label for="resultInput">Résultat obtenu avec votre IA <span>(collez la réponse que vous souhaitez soumettre)</span></label>
               <textarea id="resultInput" rows="7" placeholder="Collez ici la réponse obtenue dans votre IA…"></textarea>
               <div id="participantRoundStatus" class="round-status waiting">Manche prête. Attendez le lancement du formateur.</div><div class="submit-row"><button class="primary" id="submitRound" type="button">En attente du lancement</button><span class="save-state" id="saveState">Non soumis</span></div>
             </article>
@@ -131,9 +133,9 @@
       <section id="trainer" class="screen">
         <div class="section-head">
           <div>
-            <p class="eyebrow">ESPACE FORMATEUR · V2.3 · CHRONO COLLECTIF</p>
+            <p class="eyebrow">ESPACE FORMATEUR · V2.4 · NOTATION & CLASSEMENT</p>
             <h1>Piloter la Prompt Battle</h1>
-            <p class="muted">Créez une session, lancez les manches et pilotez un chrono commun de 5 min 30 sur tous les appareils.</p>
+            <p class="muted">Pilotez les manches, consultez les productions, notez les résultats et publiez le classement en temps réel.</p>
           </div>
           <div class="trainer-head-actions"><button class="danger-ghost" type="button" id="resetBattle">Remettre la battle à zéro</button><button class="ghost" type="button" data-go="home">← Accueil</button></div>
         </div>
@@ -174,14 +176,60 @@
 
         <div class="trainer-layout">
           <article class="panel">
-            <div class="panel-title-row"><div><p class="panel-label">ÉQUIPES</p><h2>Connexions en direct</h2></div><span class="live-chip">● LIVE</span></div>
+            <div class="panel-title-row"><div><p class="panel-label">ÉQUIPES</p><h2>Connexions & productions</h2></div><span class="live-chip">● LIVE</span></div>
             <div class="trainer-teams" id="trainerTeams"></div>
           </article>
           <article class="panel leaderboard-panel">
-            <div class="panel-title-row"><div><p class="panel-label">CLASSEMENT</p><h2>Résultats de la manche</h2></div><button class="tiny" type="button" id="publishRanking">Publier</button></div>
+            <div class="panel-title-row"><div><p class="panel-label">CLASSEMENT</p><h2>Résultats cumulés</h2></div><button class="tiny" type="button" id="publishRanking">Publier</button></div>
             <div class="leaderboard" id="leaderboard"></div>
-            <p class="note">La notation et la publication du classement seront connectées dans une étape ultérieure.</p>
+            <p class="note" id="rankingPublicationNote">Le classement est visible uniquement par le formateur tant qu’il n’est pas publié.</p>
           </article>
+        </div>
+
+        <article class="panel review-panel">
+          <div class="panel-title-row review-heading">
+            <div>
+              <p class="panel-label">NOTATION FORMATEUR</p>
+              <h2>Consulter et évaluer les productions</h2>
+            </div>
+            <div class="round-tabs" id="reviewRoundTabs">
+              <button class="tiny round-tab active" type="button" data-review-round="1">Manche 1</button>
+              <button class="tiny round-tab" type="button" data-review-round="2">Manche 2</button>
+              <button class="tiny round-tab" type="button" data-review-round="3">Manche 3</button>
+            </div>
+          </div>
+          <div class="review-grid">
+            <div class="review-list" id="reviewSubmissionList">
+              <p class="muted">Les productions soumises apparaîtront ici.</p>
+            </div>
+            <div class="review-detail" id="reviewDetail">
+              <div class="empty-review">
+                <strong>Sélectionnez une équipe</strong>
+                <span>Vous pourrez lire son prompt, sa réponse IA et attribuer une note sur 20.</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section id="ranking" class="screen">
+        <div class="section-head">
+          <div><p class="eyebrow">CLASSEMENT PUBLIÉ</p><h1>Résultats de la Prompt Battle</h1><p class="muted">Le classement est calculé à partir des évaluations du formateur. L’autoévaluation reste un outil de recul pédagogique et n’entre pas dans le classement.</p></div>
+          <button class="ghost" type="button" data-go="battle">← Retour à ma manche</button>
+        </div>
+        <article class="panel ranking-public-panel">
+          <div class="leaderboard public-leaderboard" id="publicLeaderboard"></div>
+        </article>
+      </section>
+
+      <section id="projection" class="screen">
+        <div class="projection-shell">
+          <div class="projection-top"><div><p class="eyebrow" id="projectionRoundLabel">MANCHE</p><h1 id="projectionTeamTitle">Production</h1></div><button class="ghost" type="button" data-go="trainer">← Retour formateur</button></div>
+          <div class="projection-columns">
+            <article class="panel"><p class="panel-label">PROMPT DE L’ÉQUIPE</p><div class="projection-text" id="projectionPrompt"></div></article>
+            <article class="panel"><p class="panel-label">RÉSULTAT OBTENU AVEC L’IA</p><div class="projection-text" id="projectionResponse"></div></article>
+          </div>
+          <div class="projection-score" id="projectionScore"></div>
         </div>
       </section>
 
@@ -190,7 +238,7 @@
       </section>
     </main>
 
-    <footer><span>Prompt Battle · Managers en santé</span><span>V2.3 · chrono collectif & soumissions</span></footer>
+    <footer><span>Prompt Battle · Managers en santé</span><span>V2.4 · notation, projection & classement</span></footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

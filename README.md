@@ -1,25 +1,22 @@
-# Prompt Battle — Managers en santé — V2.3
+# Prompt Battle — Managers en santé — V2.4
 
-Version collaborative de test.
+V2.4 ajoute la partie formateur dédiée au débrief : consultation des productions, notation sur 4 critères, projection en grand, classement cumulé et publication du classement aux participants.
+
+## Avant de publier la V2.4
+
+Exécuter une seule fois le fichier `supabase-v2.4.sql` dans **Supabase > SQL Editor**.
 
 ## Nouveautés
-- chrono commun 5 min 30 piloté par le formateur ;
-- lancement / pause / reprise synchronisés ;
-- passage à la manche suivante piloté par le formateur ;
-- soumission du prompt et du résultat dans Supabase ;
-- autoévaluation enregistrée ;
-- statut de soumission visible côté formateur ;
-- soumissions hors délai acceptées et signalées ;
-- réinitialisation réelle d'une session (équipes + productions) en conservant le même code.
 
-## Migration Supabase requise
-Exécuter une fois :
+- Consultation des productions par manche et par équipe.
+- Notation formateur : Pertinence, Précision, Contexte, Utilité managériale, chacune sur 5.
+- Total automatique sur 20 pour chaque manche.
+- Autoévaluation visible à côté de la note formateur, mais non intégrée au classement.
+- Mode « Afficher en grand » pour projeter prompt + réponse pendant le débrief.
+- Classement cumulé en fonction des notes du formateur.
+- Bouton Publier / Masquer : les participants n'accèdent au classement qu'après publication.
+- Les évaluations formateur sont stockées dans une table séparée (`trainer_evaluations`).
 
-```sql
-alter table public.sessions drop constraint if exists sessions_status_check;
-alter table public.sessions
-add constraint sessions_status_check
-check (status in ('waiting', 'running', 'paused', 'review', 'finished'));
-```
+## Déploiement test
 
-Puis remplacer les 4 fichiers du dépôt de test par cette V2.3.
+Remplacer les fichiers du dépôt `prompt-battle-test` par ceux de ce dossier, puis tester avant de reporter la version vers le dépôt de production.
