@@ -37,6 +37,8 @@ const state = {
   participantChannel: null,
   trainerChannel: null,
   timerInterval: null,
+  participantSyncInterval: null,
+  rankingOpenInProgress: false,
   lastParticipantRound: null
 };
 
@@ -195,6 +197,7 @@ async function joinSessionByCode() {
     document.getElementById('teamSelectionBlock').classList.remove('hidden');
     await loadParticipantTeams();
     subscribeParticipant(data.id);
+    startParticipantSyncLoop();
     startTimerLoop();
   } catch (error) {
     console.error(error);
@@ -314,8 +317,47 @@ async function reserveTeam(slot, existing) {
 
 async function openBattle() {
   document.getElementById('currentTeamBadge').textContent = `Équipe ${state.team}`;
+  if (state.participantSession?.status === 'finished' || state.participantSession?.ranking_published) {
+    await routeParticipantBySessionState();
+    return;
+  }
   await loadParticipantRound();
   showScreen('battle');
+}
+
+function clearParticipantSyncLoop() {
+  if (state.participantSyncInterval) clearInterval(state.participantSyncInterval);
+  state.participantSyncInterval = null;
+}
+
+function startParticipantSyncLoop() {
+  clearParticipantSyncLoop();
+  // Realtime reste le canal principal. Ce contrôle léger sert de filet de sécurité
+  // si un téléphone met l'onglet en veille ou manque un évènement réseau.
+  state.participantSyncInterval = setInterval(async () => {
+    if (!state.participantSession?.id || !state.teamId) return;
+    if (state.participantSession.status !== 'finished' && !state.participantSession.ranking_published) return;
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Synchronisation participant différée', error); }
+  }, 3000);
+}
+
+async function routeParticipantBySessionState({ autoOpenRanking = true } = {}) {
+  if (!state.participantSession || !state.teamId) return;
+
+  const finished = state.participantSession.status === 'finished';
+  const published = Boolean(state.participantSession.ranking_published);
+
+  renderParticipantRankingAvailability();
+
+  if (published && autoOpenRanking) {
+    await openPublicRanking(true);
+    return;
+  }
+
+  if (finished) {
+    const active = document.querySelector('.screen.active')?.id;
+    if (active !== 'final' && active !== 'ranking') showScreen('final');
+  }
 }
 
 async function refreshParticipantSession() {
@@ -324,6 +366,12 @@ async function refreshParticipantSession() {
   if (error) throw error;
   const previousRound = state.participantSession.current_round;
   state.participantSession = data;
+
+  if (data.status === 'finished' || data.ranking_published) {
+    await routeParticipantBySessionState();
+    return;
+  }
+
   if (state.teamId && previousRound !== data.current_round) {
     await loadParticipantRound(true);
     showScreen('battle');
@@ -543,8 +591,9 @@ async function saveSelfScore() {
     if (error) throw error;
     document.getElementById('selfcheckWaiting').classList.remove('hidden');
     button.textContent = 'Autoévaluation enregistrée ✓';
-    showScreen('battle');
     document.getElementById('saveState').textContent = `✓ Soumis · autoévaluation ${total}/20`;
+    await refreshParticipantSession();
+    if (state.participantSession?.status !== 'finished' && !state.participantSession?.ranking_published) showScreen('battle');
   } catch (error) {
     console.error(error);
     alert(`Impossible d’enregistrer l’autoévaluation : ${error.message}`);
@@ -932,6 +981,8 @@ async function openPublicRanking(silent = false) {
     if (!silent) alert('Le classement n’est pas encore publié par le formateur.');
     return;
   }
+  if (state.rankingOpenInProgress) return;
+  state.rankingOpenInProgress = true;
   try {
     const [teams, evaluations] = await Promise.all([
       fetchTeams(state.participantSession.id),
@@ -949,7 +1000,7 @@ async function openPublicRanking(silent = false) {
     const medals = ['🥇', '🥈', '🥉'];
 
     podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/3 manches notées</small></article>`).join('');
-    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/3 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Aucune note n’a encore été publiée.</p>';
+    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/3 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d’être publié. Chargement des notes…</p>';
 
     const ownIndex = ranking.findIndex(item => item.team.id === state.teamId);
     if (ownNote) {
@@ -960,6 +1011,9 @@ async function openPublicRanking(silent = false) {
   } catch (error) {
     console.error(error);
     if (!silent) alert(`Impossible de charger le classement : ${error.message}`);
+    else if (state.participantSession?.status === 'finished') showScreen('final');
+  } finally {
+    state.rankingOpenInProgress = false;
   }
 }
 
@@ -972,7 +1026,7 @@ function renderParticipantRankingAvailability() {
   if (banner) banner.classList.toggle('hidden', !published);
   if (toast) toast.classList.toggle('hidden', !published || !state.teamId);
   if (finalButton) finalButton.classList.toggle('hidden', !published);
-  if (finalStatus) finalStatus.textContent = published ? 'Classement publié !' : 'Classement en attente';
+  if (finalStatus) finalStatus.textContent = published ? 'Classement publié ! Ouverture…' : 'Classement en attente';
 }
 
 function subscribeParticipant(sessionId) {
@@ -982,14 +1036,15 @@ function subscribeParticipant(sessionId) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `session_id=eq.${sessionId}` }, loadParticipantTeams)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, async payload => {
       const previousRound = state.participantSession?.current_round;
-      const wasPublished = Boolean(state.participantSession?.ranking_published);
       state.participantSession = payload.new;
-      const justPublished = !wasPublished && Boolean(payload.new.ranking_published);
-      renderParticipantRankingAvailability();
-      if (justPublished && state.teamId && payload.new.status === 'finished') {
-        await openPublicRanking(true);
+
+      // Fin de battle prioritaire : quel que soit l'écran courant (battle, auto-évaluation, accueil),
+      // le participant est envoyé vers la salle d'attente, puis vers le classement dès publication.
+      if (payload.new.status === 'finished' || payload.new.ranking_published) {
+        await routeParticipantBySessionState();
         return;
       }
+
       if (state.teamId && previousRound !== payload.new.current_round) {
         await loadParticipantRound(true);
         showScreen('battle');
@@ -998,9 +1053,7 @@ function subscribeParticipant(sessionId) {
       }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trainer_evaluations', filter: `session_id=eq.${sessionId}` }, async () => {
-      if (state.participantSession?.ranking_published && document.querySelector('.screen.active')?.id === 'ranking') {
-        await openPublicRanking(true);
-      }
+      if (state.participantSession?.ranking_published) await openPublicRanking(true);
     })
     .subscribe();
 }
@@ -1019,6 +1072,17 @@ function subscribeTrainer(sessionId) {
     })
     .subscribe();
 }
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && state.participantSession?.id && state.teamId) {
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation au retour sur l’onglet', error); }
+  }
+});
+window.addEventListener('focus', async () => {
+  if (state.participantSession?.id && state.teamId) {
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation au focus', error); }
+  }
+});
 
 document.getElementById('rctfToggle').addEventListener('click', () => {
   const help = document.getElementById('rctfHelp');
@@ -1042,6 +1106,9 @@ document.querySelectorAll('[data-review-round]').forEach(btn => btn.addEventList
 document.getElementById('openPublicRanking').addEventListener('click', openPublicRanking);
 document.getElementById('openRankingToast').addEventListener('click', () => openPublicRanking());
 document.getElementById('finalRankingButton').addEventListener('click', () => openPublicRanking());
+document.getElementById('refreshFinalState').addEventListener('click', async () => {
+  try { await refreshParticipantSession(); } catch (error) { alert(`Impossible d’actualiser : ${error.message}`); }
+});
 
 async function resetBattle() {
   if (!state.trainerSession) {

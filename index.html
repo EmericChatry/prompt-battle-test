@@ -249,9 +249,9 @@
           <p>Vos trois manches sont terminées. Le classement apparaîtra sur votre téléphone dès que le formateur décidera de le publier.</p>
           <div class="final-ranking-state" id="finalRankingState">
             <span class="waiting-dot"></span>
-            <div><strong id="finalRankingStatus">Classement en attente</strong><p>Le formateur termine la notation des productions.</p></div>
+            <div><strong id="finalRankingStatus">Classement en attente</strong><p>Restez sur cet écran : les résultats s’afficheront automatiquement dès leur publication.</p></div>
           </div>
-          <button class="primary hidden" type="button" id="finalRankingButton">Voir le classement</button>
+          <button class="primary hidden" type="button" id="finalRankingButton">Ouvrir le classement</button><button class="secondary" type="button" id="refreshFinalState">Actualiser l’état</button>
           <div class="final-highlight"><span>⚡</span><div><strong>En cas d’égalité</strong><p>60 secondes pour raccourcir votre meilleur résultat de moitié sans perdre l’essentiel.</p></div></div>
         </div>
       </section>
@@ -262,7 +262,7 @@
       <button class="tiny" type="button" id="openRankingToast">Voir</button>
     </div>
 
-    <footer><span>Prompt Battle · Managers en santé</span><span>V2.5 · notation, projection & classement</span></footer>
+    <footer><span>Prompt Battle · Managers en santé</span><span>V2.6 · fin de battle & classement synchronisé</span></footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

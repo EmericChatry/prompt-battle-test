@@ -1,33 +1,21 @@
-# Prompt Battle — Managers en santé — V2.5
+# Prompt Battle Managers en santé — V2.6
 
-V2.5 finalise le parcours de fin de battle et la publication des résultats sur les téléphones des participants.
+Correctif de synchronisation de fin de battle et de publication du classement.
 
-## Aucune nouvelle migration Supabase
+## Changements principaux
 
-Si la migration V2.4 (`supabase-v2.4.sql`) a déjà été exécutée avec succès, il n'y a **aucun SQL supplémentaire** à lancer pour cette version.
+- Dès que le formateur termine la battle, un participant déjà engagé dans une équipe est forcé vers un écran d’attente, même s’il se trouve encore sur l’auto-évaluation.
+- Dès que le classement est publié, le téléphone ouvre automatiquement le classement.
+- Le temps réel Supabase reste prioritaire, avec un contrôle de synchronisation toutes les 3 secondes uniquement pendant la fin de battle / publication pour résister aux mises en veille des téléphones.
+- Une resynchronisation est aussi effectuée lorsque le participant revient sur l’onglet ou remet le navigateur au premier plan.
+- Un bouton « Actualiser l’état » reste disponible sur l’écran d’attente comme solution de secours.
+- Aucun changement SQL n’est nécessaire par rapport à la V2.4/V2.5.
 
-## Finitions V2.5
+## Test recommandé
 
-- Bouton formateur explicite : **Publier le classement aux participants** / **Masquer le classement aux participants**.
-- Badge **Privé / Publié** dans le tableau de bord formateur.
-- Confirmation avant publication d'un classement provisoire ou incomplet.
-- À la fin de la 3e manche, les participants arrivent sur un écran d'attente dédié.
-- Dès que le formateur publie le classement final, celui-ci s'ouvre automatiquement sur les téléphones connectés.
-- Un bandeau flottant permet de rouvrir le classement à tout moment après publication.
-- Classement mobile avec podium, classement complet et mise en évidence de l'équipe du participant.
-- Score final affiché sur **60 points** lorsque les trois manches sont notées.
-- Le classement reste actualisable en temps réel tant qu'il est publié.
-
-## Workflow conseillé en formation
-
-1. Terminer la manche 3.
-2. Cliquer sur **Terminer la Prompt Battle** côté formateur.
-3. Les participants voient un écran « Classement en attente ».
-4. Terminer les évaluations des productions.
-5. Cliquer sur **Publier le classement aux participants**.
-6. Le classement s'affiche automatiquement sur les téléphones.
-7. Utiliser ensuite le mode projection pour le débrief collectif.
-
-## Déploiement
-
-Remplacer les fichiers du dépôt `prompt-battle-test` par ceux de ce dossier. Après validation, reporter cette version dans le dépôt de production.
+1. Rejoindre une session depuis un téléphone et terminer la manche 3.
+2. Rester volontairement sur l’écran d’auto-évaluation.
+3. Côté formateur, terminer la Prompt Battle.
+4. Vérifier que le téléphone bascule automatiquement sur l’écran « Battle terminée ».
+5. Côté formateur, publier le classement.
+6. Vérifier que le téléphone ouvre automatiquement le classement, sans retour manuel à l’accueil.
