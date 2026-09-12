@@ -1,22 +1,33 @@
-# Prompt Battle — Managers en santé — V2.4
+# Prompt Battle — Managers en santé — V2.5
 
-V2.4 ajoute la partie formateur dédiée au débrief : consultation des productions, notation sur 4 critères, projection en grand, classement cumulé et publication du classement aux participants.
+V2.5 finalise le parcours de fin de battle et la publication des résultats sur les téléphones des participants.
 
-## Avant de publier la V2.4
+## Aucune nouvelle migration Supabase
 
-Exécuter une seule fois le fichier `supabase-v2.4.sql` dans **Supabase > SQL Editor**.
+Si la migration V2.4 (`supabase-v2.4.sql`) a déjà été exécutée avec succès, il n'y a **aucun SQL supplémentaire** à lancer pour cette version.
 
-## Nouveautés
+## Finitions V2.5
 
-- Consultation des productions par manche et par équipe.
-- Notation formateur : Pertinence, Précision, Contexte, Utilité managériale, chacune sur 5.
-- Total automatique sur 20 pour chaque manche.
-- Autoévaluation visible à côté de la note formateur, mais non intégrée au classement.
-- Mode « Afficher en grand » pour projeter prompt + réponse pendant le débrief.
-- Classement cumulé en fonction des notes du formateur.
-- Bouton Publier / Masquer : les participants n'accèdent au classement qu'après publication.
-- Les évaluations formateur sont stockées dans une table séparée (`trainer_evaluations`).
+- Bouton formateur explicite : **Publier le classement aux participants** / **Masquer le classement aux participants**.
+- Badge **Privé / Publié** dans le tableau de bord formateur.
+- Confirmation avant publication d'un classement provisoire ou incomplet.
+- À la fin de la 3e manche, les participants arrivent sur un écran d'attente dédié.
+- Dès que le formateur publie le classement final, celui-ci s'ouvre automatiquement sur les téléphones connectés.
+- Un bandeau flottant permet de rouvrir le classement à tout moment après publication.
+- Classement mobile avec podium, classement complet et mise en évidence de l'équipe du participant.
+- Score final affiché sur **60 points** lorsque les trois manches sont notées.
+- Le classement reste actualisable en temps réel tant qu'il est publié.
 
-## Déploiement test
+## Workflow conseillé en formation
 
-Remplacer les fichiers du dépôt `prompt-battle-test` par ceux de ce dossier, puis tester avant de reporter la version vers le dépôt de production.
+1. Terminer la manche 3.
+2. Cliquer sur **Terminer la Prompt Battle** côté formateur.
+3. Les participants voient un écran « Classement en attente ».
+4. Terminer les évaluations des productions.
+5. Cliquer sur **Publier le classement aux participants**.
+6. Le classement s'affiche automatiquement sur les téléphones.
+7. Utiliser ensuite le mode projection pour le débrief collectif.
+
+## Déploiement
+
+Remplacer les fichiers du dépôt `prompt-battle-test` par ceux de ce dossier. Après validation, reporter cette version dans le dépôt de production.

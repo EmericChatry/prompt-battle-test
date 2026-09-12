@@ -133,7 +133,7 @@
       <section id="trainer" class="screen">
         <div class="section-head">
           <div>
-            <p class="eyebrow">ESPACE FORMATEUR · V2.4 · NOTATION & CLASSEMENT</p>
+            <p class="eyebrow">ESPACE FORMATEUR · V2.5 · NOTATION & CLASSEMENT</p>
             <h1>Piloter la Prompt Battle</h1>
             <p class="muted">Pilotez les manches, consultez les productions, notez les résultats et publiez le classement en temps réel.</p>
           </div>
@@ -180,9 +180,12 @@
             <div class="trainer-teams" id="trainerTeams"></div>
           </article>
           <article class="panel leaderboard-panel">
-            <div class="panel-title-row"><div><p class="panel-label">CLASSEMENT</p><h2>Résultats cumulés</h2></div><button class="tiny" type="button" id="publishRanking">Publier</button></div>
+            <div class="panel-title-row"><div><p class="panel-label">CLASSEMENT</p><h2>Résultats cumulés</h2></div><span class="publication-badge" id="rankingPublicationBadge">Privé</span></div>
             <div class="leaderboard" id="leaderboard"></div>
-            <p class="note" id="rankingPublicationNote">Le classement est visible uniquement par le formateur tant qu’il n’est pas publié.</p>
+            <div class="ranking-publish-box">
+              <p class="note" id="rankingPublicationNote">Le classement est visible uniquement par le formateur tant qu’il n’est pas publié.</p>
+              <button class="primary ranking-publish-button" type="button" id="publishRanking">Publier le classement aux participants</button>
+            </div>
           </article>
         </div>
 
@@ -218,7 +221,13 @@
           <button class="ghost" type="button" data-go="battle">← Retour à ma manche</button>
         </div>
         <article class="panel ranking-public-panel">
+          <div class="public-ranking-head">
+            <div><p class="panel-label">PODIUM</p><h2>Classement final</h2></div>
+            <span class="live-chip">● Publié par le formateur</span>
+          </div>
+          <div class="podium" id="publicPodium"></div>
           <div class="leaderboard public-leaderboard" id="publicLeaderboard"></div>
+          <p class="own-team-note hidden" id="ownTeamRankingNote"></p>
         </article>
       </section>
 
@@ -234,11 +243,26 @@
       </section>
 
       <section id="final" class="screen">
-        <div class="final-card"><p class="eyebrow">BATTLE TERMINÉE</p><h1>Place au débrief collectif.</h1><p>Comparez les productions, les choix de contexte, la formulation de la tâche et l’utilité réelle du résultat produit par l’IA.</p><div class="final-highlight"><span>⚡</span><div><strong>En cas d’égalité</strong><p>60 secondes pour raccourcir votre meilleur résultat de moitié sans perdre l’essentiel.</p></div></div><div class="hero-actions"><button class="primary" type="button" data-go="home">Retour à l’accueil</button><button class="secondary" type="button" data-go="trainer">Voir l’espace formateur</button></div></div>
+        <div class="final-card">
+          <p class="eyebrow">BATTLE TERMINÉE</p>
+          <h1>Place au débrief collectif.</h1>
+          <p>Vos trois manches sont terminées. Le classement apparaîtra sur votre téléphone dès que le formateur décidera de le publier.</p>
+          <div class="final-ranking-state" id="finalRankingState">
+            <span class="waiting-dot"></span>
+            <div><strong id="finalRankingStatus">Classement en attente</strong><p>Le formateur termine la notation des productions.</p></div>
+          </div>
+          <button class="primary hidden" type="button" id="finalRankingButton">Voir le classement</button>
+          <div class="final-highlight"><span>⚡</span><div><strong>En cas d’égalité</strong><p>60 secondes pour raccourcir votre meilleur résultat de moitié sans perdre l’essentiel.</p></div></div>
+        </div>
       </section>
     </main>
 
-    <footer><span>Prompt Battle · Managers en santé</span><span>V2.4 · notation, projection & classement</span></footer>
+    <div class="ranking-toast hidden" id="rankingToast" role="status" aria-live="polite">
+      <div><strong>🏆 Classement disponible</strong><span>Le formateur vient de publier les résultats.</span></div>
+      <button class="tiny" type="button" id="openRankingToast">Voir</button>
+    </div>
+
+    <footer><span>Prompt Battle · Managers en santé</span><span>V2.5 · notation, projection & classement</span></footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

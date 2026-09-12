@@ -384,6 +384,7 @@ function renderParticipantRoundState(existingSubmission = null) {
     submit.disabled = true;
     submit.textContent = 'Battle terminée';
     renderParticipantRankingAvailability();
+    if (state.teamId && document.querySelector('.screen.active')?.id !== 'ranking') showScreen('final');
     return;
   }
 
@@ -745,17 +746,37 @@ function renderLeaderboard() {
 function renderRankingPublicationState() {
   const button = document.getElementById('publishRanking');
   const note = document.getElementById('rankingPublicationNote');
+  const badge = document.getElementById('rankingPublicationBadge');
   if (!button || !state.trainerSession) return;
   const published = Boolean(state.trainerSession.ranking_published);
-  button.textContent = published ? 'Masquer' : 'Publier';
+  button.textContent = published ? 'Masquer le classement aux participants' : 'Publier le classement aux participants';
   button.classList.toggle('published', published);
-  if (note) note.textContent = published ? 'Classement publié : les participants peuvent désormais le consulter.' : 'Le classement est visible uniquement par le formateur tant qu’il n’est pas publié.';
+  if (badge) {
+    badge.textContent = published ? 'Publié' : 'Privé';
+    badge.classList.toggle('published', published);
+  }
+  if (note) note.textContent = published
+    ? 'Le classement est maintenant visible en temps réel sur les téléphones des participants.'
+    : 'Le classement reste privé côté formateur. Publiez-le lorsque votre notation est prête.';
 }
 
 async function toggleRankingPublication() {
   if (!state.trainerSession) return;
+  const willPublish = !Boolean(state.trainerSession.ranking_published);
+  if (willPublish) {
+    const ranking = cumulativeRanking();
+    if (!ranking.length) {
+      alert('Aucune production n’est encore notée. Notez au moins une équipe avant de publier le classement.');
+      return;
+    }
+    const incomplete = ranking.filter(item => item.rounds < 3).length;
+    const message = state.trainerSession.status === 'finished'
+      ? (incomplete ? `${incomplete} équipe(s) n’ont pas encore 3 manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
+      : 'La battle n’est pas encore terminée. Publier un classement provisoire aux participants ?';
+    if (!window.confirm(message)) return;
+  }
   try {
-    await updateTrainerSession({ ranking_published: !Boolean(state.trainerSession.ranking_published) });
+    await updateTrainerSession({ ranking_published: willPublish });
   } catch (error) {
     console.error(error);
     alert(`Impossible de modifier la publication : ${error.message}`);
@@ -906,9 +927,9 @@ async function prepareNextRound() {
   }
 }
 
-async function openPublicRanking() {
+async function openPublicRanking(silent = false) {
   if (!state.participantSession?.ranking_published) {
-    alert('Le classement n’est pas encore publié par le formateur.');
+    if (!silent) alert('Le classement n’est pas encore publié par le formateur.');
     return;
   }
   try {
@@ -920,19 +941,38 @@ async function openPublicRanking() {
       const evals = evaluations.filter(e => e.team_id === team.id);
       return { team, rounds: evals.length, total: evals.reduce((sum, e) => sum + Number(e.total || 0), 0) };
     }).filter(x => x.rounds > 0).sort((a,b) => b.total - a.total || b.rounds - a.rounds || a.team.team_slot - b.team.team_slot);
+
     const board = document.getElementById('publicLeaderboard');
-    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/3 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${item.total}/${item.rounds * 20}</span></div>`).join('') : '<p class="muted">Aucune note n’a encore été publiée.</p>';
+    const podium = document.getElementById('publicPodium');
+    const ownNote = document.getElementById('ownTeamRankingNote');
+    const scoreLabel = item => `${item.total}/${item.rounds === 3 ? 60 : item.rounds * 20}`;
+    const medals = ['🥇', '🥈', '🥉'];
+
+    podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/3 manches notées</small></article>`).join('');
+    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/3 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Aucune note n’a encore été publiée.</p>';
+
+    const ownIndex = ranking.findIndex(item => item.team.id === state.teamId);
+    if (ownNote) {
+      ownNote.classList.toggle('hidden', ownIndex < 0);
+      if (ownIndex >= 0) ownNote.textContent = `Votre équipe termine ${ownIndex + 1}${ownIndex === 0 ? 're' : 'e'} avec ${scoreLabel(ranking[ownIndex])}.`;
+    }
     showScreen('ranking');
   } catch (error) {
     console.error(error);
-    alert(`Impossible de charger le classement : ${error.message}`);
+    if (!silent) alert(`Impossible de charger le classement : ${error.message}`);
   }
 }
 
 function renderParticipantRankingAvailability() {
+  const published = Boolean(state.participantSession?.ranking_published);
   const banner = document.getElementById('rankingBanner');
-  if (!banner) return;
-  banner.classList.toggle('hidden', !Boolean(state.participantSession?.ranking_published));
+  const toast = document.getElementById('rankingToast');
+  const finalButton = document.getElementById('finalRankingButton');
+  const finalStatus = document.getElementById('finalRankingStatus');
+  if (banner) banner.classList.toggle('hidden', !published);
+  if (toast) toast.classList.toggle('hidden', !published || !state.teamId);
+  if (finalButton) finalButton.classList.toggle('hidden', !published);
+  if (finalStatus) finalStatus.textContent = published ? 'Classement publié !' : 'Classement en attente';
 }
 
 function subscribeParticipant(sessionId) {
@@ -942,13 +982,24 @@ function subscribeParticipant(sessionId) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `session_id=eq.${sessionId}` }, loadParticipantTeams)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, async payload => {
       const previousRound = state.participantSession?.current_round;
+      const wasPublished = Boolean(state.participantSession?.ranking_published);
       state.participantSession = payload.new;
+      const justPublished = !wasPublished && Boolean(payload.new.ranking_published);
       renderParticipantRankingAvailability();
+      if (justPublished && state.teamId && payload.new.status === 'finished') {
+        await openPublicRanking(true);
+        return;
+      }
       if (state.teamId && previousRound !== payload.new.current_round) {
         await loadParticipantRound(true);
         showScreen('battle');
       } else {
         renderParticipantRoundState();
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trainer_evaluations', filter: `session_id=eq.${sessionId}` }, async () => {
+      if (state.participantSession?.ranking_published && document.querySelector('.screen.active')?.id === 'ranking') {
+        await openPublicRanking(true);
       }
     })
     .subscribe();
@@ -989,6 +1040,8 @@ document.querySelectorAll('[data-review-round]').forEach(btn => btn.addEventList
   renderReviewDetail(null);
 }));
 document.getElementById('openPublicRanking').addEventListener('click', openPublicRanking);
+document.getElementById('openRankingToast').addEventListener('click', () => openPublicRanking());
+document.getElementById('finalRankingButton').addEventListener('click', () => openPublicRanking());
 
 async function resetBattle() {
   if (!state.trainerSession) {
