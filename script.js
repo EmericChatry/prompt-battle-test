@@ -963,43 +963,69 @@ async function pauseRound() {
 }
 
 async function prepareNextRound() {
-  if (!state.trainerSession) return;
-  const session = state.trainerSession;
-  const current = displayRoundNumber(session);
-  const isActive = session.status === 'running' || session.status === 'paused';
-
-  let message;
-  if (current >= 3) {
-    message = isActive
-      ? 'Clôturer la manche 3 maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.'
-      : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.';
-  } else {
-    message = isActive
-      ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
-      : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`;
+  if (!state.trainerSession?.id) {
+    alert('Aucune session formateur active.');
+    return;
   }
 
-  const confirmed = window.confirm(message);
-  if (!confirmed) return;
+  const button = document.getElementById('nextTrainerRoundButton');
+  const originalText = button?.textContent || '';
 
   try {
+    // Relire la session juste avant l’action évite de travailler avec un état local périmé.
+    const { data: freshSession, error: readError } = await db
+      .from('sessions')
+      .select('*')
+      .eq('id', state.trainerSession.id)
+      .single();
+    if (readError) throw readError;
+
+    state.trainerSession = freshSession;
+    const current = displayRoundNumber(freshSession);
+    const isActive = freshSession.status === 'running' || freshSession.status === 'paused';
+
+    let message;
     if (current >= 3) {
-      await updateTrainerSession({
-        status: 'finished',
-        round_started_at: null,
-        round_duration_seconds: 0
-      });
+      message = isActive
+        ? 'Clôturer la manche 3 maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.'
+        : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.';
     } else {
-      await updateTrainerSession({
-        current_round: current + 1,
-        status: 'waiting',
-        round_started_at: null,
-        round_duration_seconds: ROUND_SECONDS
-      });
+      message = isActive
+        ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
+        : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`;
     }
+
+    if (!window.confirm(message)) return;
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = current >= 3 ? 'Clôture de la battle…' : `Préparation de la manche ${current + 1}…`;
+    }
+
+    const patch = current >= 3
+      ? { status: 'finished', round_started_at: null, round_duration_seconds: 0 }
+      : { current_round: current + 1, status: 'waiting', round_started_at: null, round_duration_seconds: ROUND_SECONDS };
+
+    const { data: updatedSession, error: updateError } = await db
+      .from('sessions')
+      .update(patch)
+      .eq('id', freshSession.id)
+      .select('*')
+      .single();
+    if (updateError) throw updateError;
+
+    state.trainerSession = updatedSession;
+    renderTrainerSession();
+    await refreshTrainerData();
   } catch (error) {
-    console.error(error);
-    alert(`Impossible de changer de manche : ${error.message}`);
+    console.error('Erreur changement de manche', error);
+    alert(`Impossible de changer de manche : ${error.message || error}`);
+  } finally {
+    if (button && state.trainerSession?.status !== 'finished') {
+      button.disabled = false;
+      if (button.textContent.includes('…')) button.textContent = originalText;
+      renderTrainerControls();
+    }
   }
 }
 
