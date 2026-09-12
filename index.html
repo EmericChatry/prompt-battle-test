@@ -133,7 +133,7 @@
       <section id="trainer" class="screen">
         <div class="section-head">
           <div>
-            <p class="eyebrow">ESPACE FORMATEUR · V2.9 · PILOTAGE CORRIGÉ</p>
+            <p class="eyebrow">ESPACE FORMATEUR · V2.10 · ACCÈS PAR QR CODE</p>
             <h1>Piloter la Prompt Battle</h1>
             <p class="muted">Pilotez les manches, consultez les productions, notez les résultats et publiez le classement en temps réel.</p>
           </div>
@@ -147,7 +147,19 @@
             <p class="muted compact-copy" id="trainerSessionHelp">Créez une session pour générer un code à six caractères.</p>
           </div>
           <div class="session-action-block">
-            <div id="sessionCodeCard" class="session-code-card hidden"><span>Code à partager</span><strong id="trainerSessionCode">—</strong><small>Les participants saisissent ce code dans « Rejoindre une partie ».</small></div>
+            <div id="sessionCodeCard" class="session-code-card hidden">
+              <div class="session-share-grid">
+                <div class="session-code-copy">
+                  <span>Code de session</span>
+                  <strong id="trainerSessionCode">—</strong>
+                  <small>Alternative : les participants peuvent saisir ce code dans « Rejoindre une partie ».</small>
+                </div>
+                <div class="qr-share-block">
+                  <div id="sessionQrCode" class="session-qr" aria-label="QR code pour rejoindre la session"></div>
+                  <div><strong>Scannez pour rejoindre</strong><small>Le QR code ouvre directement cette session. Il ne reste qu’à choisir une équipe.</small></div>
+                </div>
+              </div>
+            </div>
             <button class="primary" id="createSessionButton" type="button">Créer une session</button>
           </div>
         </article>
@@ -262,10 +274,11 @@
       <button class="tiny" type="button" id="openRankingToast">Voir</button>
     </div>
 
-    <footer><span>Prompt Battle · Managers en santé</span><span>V2.6 · fin de battle & classement synchronisé</span></footer>
+    <footer><span>Prompt Battle · Managers en santé</span><span>V2.10 · accès participant par QR code</span></footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=2.9"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="script.js?v=2.10"></script>
 </body>
 </html>

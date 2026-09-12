@@ -158,12 +158,39 @@ async function createTrainerSession() {
   }
 }
 
+function buildParticipantJoinUrl(code) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('session', code);
+  return url.toString();
+}
+
+function renderSessionQrCode() {
+  if (!state.trainerSession) return;
+  const target = document.getElementById('sessionQrCode');
+  if (!target) return;
+  target.innerHTML = '';
+  const joinUrl = buildParticipantJoinUrl(state.trainerSession.session_code);
+  if (window.QRCode) {
+    new QRCode(target, {
+      text: joinUrl,
+      width: 190,
+      height: 190,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } else {
+    target.innerHTML = '<p class="qr-error">QR code indisponible. Utilisez le code de session.</p>';
+  }
+}
+
 function renderTrainerSession() {
   if (!state.trainerSession) return;
   document.getElementById('trainerSessionTitle').textContent = 'Session active';
-  document.getElementById('trainerSessionHelp').textContent = 'Affichez ce code aux participants. Vous gardez la main sur les manches et le chrono commun.';
+  document.getElementById('trainerSessionHelp').textContent = 'Projetez le QR code : les participants ouvrent directement la bonne session, puis choisissent leur équipe.';
   document.getElementById('trainerSessionCode').textContent = state.trainerSession.session_code;
   document.getElementById('sessionCodeCard').classList.remove('hidden');
+  renderSessionQrCode();
   renderTrainerControls();
 }
 
@@ -1198,12 +1225,23 @@ document.getElementById('sessionCodeInput').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 });
 
+async function handleSessionLink() {
+  const params = new URLSearchParams(window.location.search);
+  const code = (params.get('session') || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(code)) return;
+  showScreen('join');
+  const input = document.getElementById('sessionCodeInput');
+  input.value = code;
+  await joinSessionByCode();
+}
+
 async function init() {
   buildTrainerTeams();
   buildScores();
   startTimerLoop();
   try {
     await ensureAnonymousAuth();
+    await handleSessionLink();
   } catch (error) {
     console.error(error);
     setConnectionStatus('Connexion impossible', 'error');

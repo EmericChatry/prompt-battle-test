@@ -11,3 +11,10 @@ Correctif de pilotage formateur.
 
 ## Correctif V2.9
 Le téléphone resynchronise désormais l’état de la session toutes les 3 secondes pendant toute la participation, et non uniquement après avoir déjà détecté localement la fin de battle. Cela fiabilise le basculement vers l’écran d’attente et l’ouverture automatique du classement publié. Une resynchronisation est aussi déclenchée au retour du réseau.
+
+
+## V2.10 — QR code de session
+
+Le tableau formateur génère désormais un QR code propre à chaque session. Le QR code encode l’URL courante de l’application avec le code de session (`?session=XXXXXX`). Après scan, le téléphone ouvre automatiquement l’écran participant, valide la session et affiche directement le choix d’équipe. Le code à six caractères reste disponible comme solution de secours.
+
+Aucune migration Supabase supplémentaire n’est nécessaire.
