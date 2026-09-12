@@ -239,11 +239,13 @@ async function joinSessionByCode() {
 }
 
 async function fetchTeams(sessionId) {
-  const { data, error } = await db.rpc('list_teams_for_session', { p_session_id: sessionId });
+  const { data, error } = await db.from('teams').select('*').eq('session_id', sessionId).order('team_slot');
   if (error) throw error;
   return data || [];
 }
-  const { data, error } = await db.from('teams').select('*').eq('session_id', sessionId).order('team_slot');
+
+async function fetchTeamsForJoin(sessionId) {
+  const { data, error } = await db.rpc('list_teams_for_session', { p_session_id: sessionId });
   if (error) throw error;
   return data || [];
 }
