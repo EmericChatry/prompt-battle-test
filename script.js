@@ -882,8 +882,18 @@ function renderTrainerControls() {
     pauseButton.disabled = true;
   }
 
+  // Le formateur doit toujours pouvoir écourter une manche en cours.
+  // Le bouton reste donc actif pendant waiting / running / paused.
   nextButton.disabled = session.status === 'finished';
-  nextButton.textContent = roundNumber >= 3 ? 'Terminer la battle' : `Préparer la manche ${roundNumber + 1} →`;
+  if (roundNumber >= 3) {
+    nextButton.textContent = session.status === 'running' || session.status === 'paused'
+      ? '⏹ Clôturer la manche 3 et terminer la battle'
+      : 'Terminer la battle';
+  } else {
+    nextButton.textContent = session.status === 'running' || session.status === 'paused'
+      ? `⏭ Clôturer la manche ${roundNumber} et préparer la manche ${roundNumber + 1}`
+      : `Préparer la manche ${roundNumber + 1} →`;
+  }
   renderTrainerTimer();
 }
 
@@ -954,14 +964,31 @@ async function pauseRound() {
 
 async function prepareNextRound() {
   if (!state.trainerSession) return;
-  const current = displayRoundNumber(state.trainerSession);
-  const confirmed = window.confirm(current >= 3
-    ? 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.'
-    : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`);
+  const session = state.trainerSession;
+  const current = displayRoundNumber(session);
+  const isActive = session.status === 'running' || session.status === 'paused';
+
+  let message;
+  if (current >= 3) {
+    message = isActive
+      ? 'Clôturer la manche 3 maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.'
+      : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.';
+  } else {
+    message = isActive
+      ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
+      : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`;
+  }
+
+  const confirmed = window.confirm(message);
   if (!confirmed) return;
+
   try {
     if (current >= 3) {
-      await updateTrainerSession({ status: 'finished', round_started_at: null, round_duration_seconds: 0 });
+      await updateTrainerSession({
+        status: 'finished',
+        round_started_at: null,
+        round_duration_seconds: 0
+      });
     } else {
       await updateTrainerSession({
         current_round: current + 1,
