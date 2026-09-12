@@ -1,20 +1,23 @@
-# Prompt Battle — V2.9
+# Prompt Battle — V2.10.1
 
-Correctif de pilotage formateur.
+Correctif ciblé de fiabilité du pilotage formateur, sans changement fonctionnel pour les participants.
 
-- Le bouton « Clôturer la manche … et préparer la manche suivante » relit désormais l’état réel de la session dans Supabase avant d’agir.
-- La transition arrête immédiatement le chrono, passe la session en attente et prépare la manche suivante à 05:30.
-- La manche 3 peut être clôturée immédiatement pour terminer la battle.
-- Les fichiers CSS/JS utilisent un numéro de version dans `index.html` afin d’éviter qu’un navigateur ou GitHub Pages conserve une ancienne version en cache.
-- Aucun changement SQL n’est nécessaire.
+## Correction principale
 
+- Le bouton de passage à la manche suivante relit systématiquement l’état réel de la session dans Supabase avant la transition.
+- L’interface formateur se resynchronise automatiquement avec la session toutes les 2 secondes lorsqu’elle est visible.
+- Une resynchronisation est aussi déclenchée quand l’onglet redevient visible ou reprend le focus.
+- Une transition de manche ne peut plus être lancée deux fois en parallèle.
+- Après l’écriture dans Supabase, l’application vérifie explicitement que la nouvelle manche a bien été enregistrée.
+- Le bouton retrouve toujours un état utilisable après succès, annulation ou erreur.
+- Le cache JavaScript est invalidé avec la version `2.10.1`.
 
-## Correctif V2.9
-Le téléphone resynchronise désormais l’état de la session toutes les 3 secondes pendant toute la participation, et non uniquement après avoir déjà détecté localement la fin de battle. Cela fiabilise le basculement vers l’écran d’attente et l’ouverture automatique du classement publié. Une resynchronisation est aussi déclenchée au retour du réseau.
+## Fonctionnalités conservées
 
-
-## V2.10 — QR code de session
-
-Le tableau formateur génère désormais un QR code propre à chaque session. Le QR code encode l’URL courante de l’application avec le code de session (`?session=XXXXXX`). Après scan, le téléphone ouvre automatiquement l’écran participant, valide la session et affiche directement le choix d’équipe. Le code à six caractères reste disponible comme solution de secours.
+- QR code de session avec ouverture directe de la bonne session.
+- 3 manches avec chrono commun de 5 min 30.
+- Pause/reprise et clôture anticipée.
+- Soumissions, autoévaluation et notation formateur.
+- Écran d’attente final et publication du classement sur les téléphones.
 
 Aucune migration Supabase supplémentaire n’est nécessaire.

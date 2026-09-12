@@ -38,6 +38,9 @@ const state = {
   trainerChannel: null,
   timerInterval: null,
   participantSyncInterval: null,
+  trainerSyncInterval: null,
+  trainerSyncInProgress: false,
+  trainerTransitionBusy: false,
   rankingOpenInProgress: false,
   lastParticipantRound: null
 };
@@ -148,6 +151,7 @@ async function createTrainerSession() {
     renderTrainerSession();
     await refreshTrainerData();
     subscribeTrainer(created.id);
+    startTrainerSyncLoop();
     startTimerLoop();
   } catch (error) {
     console.error(error);
@@ -260,6 +264,46 @@ async function loadParticipantTeams() {
     state.teamId = mine.id;
   }
   buildParticipantTeams();
+}
+
+
+async function refreshTrainerSessionState({ render = true } = {}) {
+  if (!state.trainerSession?.id || state.trainerSyncInProgress) return state.trainerSession;
+  state.trainerSyncInProgress = true;
+  try {
+    const { data, error } = await db
+      .from('sessions')
+      .select('*')
+      .eq('id', state.trainerSession.id)
+      .single();
+    if (error) throw error;
+    state.trainerSession = data;
+    if (render) {
+      renderTrainerControls();
+      renderRankingPublicationState();
+    }
+    return data;
+  } finally {
+    state.trainerSyncInProgress = false;
+  }
+}
+
+function stopTrainerSyncLoop() {
+  if (state.trainerSyncInterval) clearInterval(state.trainerSyncInterval);
+  state.trainerSyncInterval = null;
+}
+
+function startTrainerSyncLoop() {
+  stopTrainerSyncLoop();
+  if (!state.trainerSession?.id) return;
+  state.trainerSyncInterval = setInterval(async () => {
+    if (document.visibilityState !== 'visible' || state.trainerTransitionBusy) return;
+    try {
+      await refreshTrainerSessionState();
+    } catch (error) {
+      console.debug('Resynchronisation formateur différée', error);
+    }
+  }, 2000);
 }
 
 async function refreshTrainerData() {
@@ -912,7 +956,7 @@ function renderTrainerControls() {
 
   // Le formateur doit toujours pouvoir écourter une manche en cours.
   // Le bouton reste donc actif pendant waiting / running / paused.
-  nextButton.disabled = session.status === 'finished';
+  nextButton.disabled = session.status === 'finished' || state.trainerTransitionBusy;
   if (roundNumber >= 3) {
     nextButton.textContent = session.status === 'running' || session.status === 'paused'
       ? '⏹ Clôturer la manche 3 et terminer la battle'
@@ -995,38 +1039,38 @@ async function prepareNextRound() {
     alert('Aucune session formateur active.');
     return;
   }
+  if (state.trainerTransitionBusy) return;
 
   const button = document.getElementById('nextTrainerRoundButton');
-  const originalText = button?.textContent || '';
+  state.trainerTransitionBusy = true;
+  renderTrainerControls();
 
   try {
-    // Relire la session juste avant l’action évite de travailler avec un état local périmé.
-    const { data: freshSession, error: readError } = await db
-      .from('sessions')
-      .select('*')
-      .eq('id', state.trainerSession.id)
-      .single();
-    if (readError) throw readError;
+    // Toujours repartir de l’état réellement stocké dans Supabase.
+    const freshSession = await refreshTrainerSessionState({ render: false });
+    if (!freshSession) throw new Error('Session introuvable.');
 
-    state.trainerSession = freshSession;
     const current = displayRoundNumber(freshSession);
     const isActive = freshSession.status === 'running' || freshSession.status === 'paused';
 
-    let message;
-    if (current >= 3) {
-      message = isActive
-        ? 'Clôturer la manche 3 maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.'
-        : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.';
-    } else {
-      message = isActive
-        ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
-        : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`;
-    }
+    const message = current >= 3
+      ? (isActive
+          ? 'Clôturer la manche 3 maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.'
+          : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.')
+      : (isActive
+          ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
+          : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`);
 
+    // On libère temporairement l’état busy pendant la boîte de dialogue : certains navigateurs
+    // recalculent mal l’état d’un bouton désactivé après un confirm() bloquant.
+    state.trainerTransitionBusy = false;
+    renderTrainerControls();
     if (!window.confirm(message)) return;
 
+    state.trainerTransitionBusy = true;
     if (button) {
       button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
       button.textContent = current >= 3 ? 'Clôture de la battle…' : `Préparation de la manche ${current + 1}…`;
     }
 
@@ -1043,17 +1087,28 @@ async function prepareNextRound() {
     if (updateError) throw updateError;
 
     state.trainerSession = updatedSession;
-    renderTrainerSession();
     await refreshTrainerData();
+
+    // Vérification explicite : si le navigateur a raté l’événement Realtime, on relit la session.
+    const verified = await refreshTrainerSessionState({ render: false });
+    if (current < 3 && Number(verified.current_round) !== current + 1) {
+      throw new Error('Le changement de manche n’a pas été confirmé par la base. Réessayez.');
+    }
+    if (current >= 3 && verified.status !== 'finished') {
+      throw new Error('La fin de battle n’a pas été confirmée par la base. Réessayez.');
+    }
   } catch (error) {
     console.error('Erreur changement de manche', error);
     alert(`Impossible de changer de manche : ${error.message || error}`);
   } finally {
-    if (button && state.trainerSession?.status !== 'finished') {
-      button.disabled = false;
-      if (button.textContent.includes('…')) button.textContent = originalText;
-      renderTrainerControls();
+    state.trainerTransitionBusy = false;
+    if (button) button.removeAttribute('aria-busy');
+    try {
+      await refreshTrainerSessionState({ render: false });
+    } catch (error) {
+      console.debug('Rafraîchissement final formateur impossible', error);
     }
+    renderTrainerSession();
   }
 }
 
@@ -1155,13 +1210,20 @@ function subscribeTrainer(sessionId) {
 }
 
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && state.participantSession?.id && state.teamId) {
-    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation au retour sur l’onglet', error); }
+  if (document.visibilityState !== 'visible') return;
+  if (state.participantSession?.id && state.teamId) {
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation participant au retour sur l’onglet', error); }
+  }
+  if (state.trainerSession?.id && !state.trainerTransitionBusy) {
+    try { await refreshTrainerSessionState(); } catch (error) { console.debug('Resynchronisation formateur au retour sur l’onglet', error); }
   }
 });
 window.addEventListener('focus', async () => {
   if (state.participantSession?.id && state.teamId) {
-    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation au focus', error); }
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation participant au focus', error); }
+  }
+  if (state.trainerSession?.id && !state.trainerTransitionBusy) {
+    try { await refreshTrainerSessionState(); } catch (error) { console.debug('Resynchronisation formateur au focus', error); }
   }
 });
 
