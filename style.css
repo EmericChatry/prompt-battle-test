@@ -459,3 +459,51 @@ footer {
   .session-action-block { justify-content: stretch; }
   .session-code-card { min-width: 0; width: 100%; }
 }
+
+/* V2.3 — chrono collectif & soumissions */
+.round-status {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.round-status.waiting { background: #eef3f6; color: var(--navy); border: 1px solid #d8e3e9; }
+.round-status.running { background: #edf7f2; color: #2f6b58; border: 1px solid #c7e4d7; }
+.round-status.paused { background: #fff6e7; color: #8c5b10; border: 1px solid #f2d69e; }
+.round-status.finished { background: #f3eef6; color: #6c4d7f; border: 1px solid #decfe7; }
+.timer-block.expired { background: #8f3842; }
+.trainer-control-panel { margin-bottom: 18px; }
+.trainer-master-timer {
+  min-width: 180px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: var(--navy);
+  color: #fff;
+  text-align: center;
+}
+.trainer-master-timer strong { display: block; font-size: 2.25rem; line-height: 1; letter-spacing: -.04em; }
+.trainer-master-timer small { display: block; margin-top: 7px; opacity: .8; }
+.trainer-master-timer .late-timer { color: #ffd3c0; }
+.trainer-control-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.trainer-control-actions button:disabled, .submit-row button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.submission-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #f6f9fb;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.submission-summary strong { color: var(--navy); }
+.state-live { color: #2f6b58; font-size: .85rem; font-weight: 750; }
+.state-done { color: #2f7d68; font-size: .85rem; font-weight: 800; }
+.state-late { color: #b25b2c; font-size: .85rem; font-weight: 800; }
+@media (max-width: 640px) {
+  .trainer-control-actions, .submission-summary { flex-direction: column; }
+  .trainer-control-actions button { width: 100%; }
+  .trainer-master-timer { width: 100%; }
+}

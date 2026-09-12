@@ -2,6 +2,7 @@ const SUPABASE_URL = 'https://cmaikgqdyjqyrtkcwhkz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_aGRxie9hlojGMP1Sttz9hg_dn4XbLc-';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+const ROUND_SECONDS = 330;
 const challenges = [
   {
     title: "Le mail impossible",
@@ -26,10 +27,14 @@ const state = {
   participantSession: null,
   trainerSession: null,
   teams: [],
+  submissions: [],
   team: 1,
   teamId: null,
-  round: 0,
-  realtimeChannel: null
+  currentSubmissionId: null,
+  participantChannel: null,
+  trainerChannel: null,
+  timerInterval: null,
+  lastParticipantRound: null
 };
 
 const screens = [...document.querySelectorAll('.screen')];
@@ -38,9 +43,7 @@ function showScreen(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-document.querySelectorAll('[data-go]').forEach(btn => {
-  btn.addEventListener('click', () => showScreen(btn.dataset.go));
-});
+document.querySelectorAll('[data-go]').forEach(btn => btn.addEventListener('click', () => showScreen(btn.dataset.go)));
 
 function setConnectionStatus(text, mode = '') {
   const el = document.getElementById('connectionStatus');
@@ -57,7 +60,6 @@ async function ensureAnonymousAuth() {
     setConnectionStatus('Supabase connecté', 'ok');
     return state.userId;
   }
-
   const { data, error } = await db.auth.signInAnonymously();
   if (error) throw error;
   state.userId = data.user.id;
@@ -72,33 +74,74 @@ function makeSessionCode() {
   return code;
 }
 
+function displayRoundNumber(session) {
+  return Math.min(3, Math.max(1, session?.current_round || 1));
+}
+
+function formatTime(totalSeconds) {
+  const secs = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(secs / 60);
+  const seconds = secs % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function timerInfo(session) {
+  if (!session) return { remaining: ROUND_SECONDS, delay: 0, expired: false };
+  const duration = Number(session.round_duration_seconds || ROUND_SECONDS);
+  if (session.status === 'running' && session.round_started_at) {
+    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(session.round_started_at).getTime()) / 1000));
+    const raw = duration - elapsed;
+    return { remaining: Math.max(0, raw), delay: Math.max(0, -raw), expired: raw <= 0 };
+  }
+  return { remaining: Math.max(0, duration), delay: 0, expired: false };
+}
+
+function clearTimerLoop() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.timerInterval = null;
+}
+
+function startTimerLoop() {
+  clearTimerLoop();
+  updateAllTimers();
+  state.timerInterval = setInterval(updateAllTimers, 500);
+}
+
+function updateAllTimers() {
+  if (state.participantSession) renderParticipantTimer();
+  if (state.trainerSession) renderTrainerTimer();
+}
+
 async function createTrainerSession() {
   const button = document.getElementById('createSessionButton');
   button.disabled = true;
   button.textContent = 'Création…';
-
   try {
     await ensureAnonymousAuth();
     let created = null;
-
     for (let attempt = 0; attempt < 5 && !created; attempt++) {
       const code = makeSessionCode();
       const { data, error } = await db
         .from('sessions')
-        .insert({ session_code: code, created_by: state.userId })
+        .insert({
+          session_code: code,
+          created_by: state.userId,
+          current_round: 0,
+          status: 'waiting',
+          round_duration_seconds: ROUND_SECONDS,
+          round_started_at: null
+        })
         .select()
         .single();
-
       if (!error) created = data;
       else if (error.code !== '23505') throw error;
     }
-
     if (!created) throw new Error('Impossible de générer un code de session unique.');
-
     state.trainerSession = created;
     renderTrainerSession();
-    await loadTrainerTeams();
-    subscribeToTeams(created.id, 'trainer');
+    await refreshTrainerData();
+    subscribeTrainer(created.id);
+    startTimerLoop();
   } catch (error) {
     console.error(error);
     alert(`Impossible de créer la session : ${error.message}`);
@@ -111,9 +154,10 @@ async function createTrainerSession() {
 function renderTrainerSession() {
   if (!state.trainerSession) return;
   document.getElementById('trainerSessionTitle').textContent = 'Session active';
-  document.getElementById('trainerSessionHelp').textContent = 'Affichez ce code aux participants. Les arrivées apparaissent ci-dessous en temps réel.';
+  document.getElementById('trainerSessionHelp').textContent = 'Affichez ce code aux participants. Vous gardez la main sur les manches et le chrono commun.';
   document.getElementById('trainerSessionCode').textContent = state.trainerSession.session_code;
   document.getElementById('sessionCodeCard').classList.remove('hidden');
+  renderTrainerControls();
 }
 
 async function joinSessionByCode() {
@@ -122,36 +166,30 @@ async function joinSessionByCode() {
   const code = input.value.trim().toUpperCase();
   input.value = code;
   feedback.className = 'form-feedback';
-
   if (code.length !== 6) {
     feedback.textContent = 'Saisissez le code à 6 caractères affiché par le formateur.';
     feedback.classList.add('error');
     return;
   }
-
   try {
     await ensureAnonymousAuth();
-    const { data, error } = await db
-      .from('sessions')
-      .select('*')
-      .eq('session_code', code)
-      .maybeSingle();
-
+    const { data, error } = await db.from('sessions').select('*').eq('session_code', code).maybeSingle();
     if (error) throw error;
     if (!data) {
-      feedback.textContent = 'Aucune session active ne correspond à ce code.';
+      feedback.textContent = 'Aucune session ne correspond à ce code.';
       feedback.classList.add('error');
       document.getElementById('teamSelectionBlock').classList.add('hidden');
       return;
     }
-
     state.participantSession = data;
+    state.lastParticipantRound = data.current_round;
     document.getElementById('participantSessionCode').textContent = data.session_code;
     feedback.textContent = 'Session trouvée. Choisissez maintenant votre équipe.';
     feedback.classList.add('success');
     document.getElementById('teamSelectionBlock').classList.remove('hidden');
     await loadParticipantTeams();
-    subscribeToTeams(data.id, 'participant');
+    subscribeParticipant(data.id);
+    startTimerLoop();
   } catch (error) {
     console.error(error);
     feedback.textContent = `Connexion impossible : ${error.message}`;
@@ -160,11 +198,13 @@ async function joinSessionByCode() {
 }
 
 async function fetchTeams(sessionId) {
-  const { data, error } = await db
-    .from('teams')
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('team_slot');
+  const { data, error } = await db.from('teams').select('*').eq('session_id', sessionId).order('team_slot');
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchSubmissions(sessionId) {
+  const { data, error } = await db.from('submissions').select('*').eq('session_id', sessionId).order('created_at');
   if (error) throw error;
   return data || [];
 }
@@ -180,16 +220,21 @@ async function loadParticipantTeams() {
   buildParticipantTeams();
 }
 
-async function loadTrainerTeams() {
+async function refreshTrainerData() {
   if (!state.trainerSession) return;
-  state.teams = await fetchTeams(state.trainerSession.id);
+  const [teams, submissions] = await Promise.all([
+    fetchTeams(state.trainerSession.id),
+    fetchSubmissions(state.trainerSession.id)
+  ]);
+  state.teams = teams;
+  state.submissions = submissions;
   buildTrainerTeams();
+  renderTrainerControls();
 }
 
 function buildParticipantTeams() {
   const grid = document.getElementById('teamGrid');
   grid.innerHTML = '';
-
   for (let i = 1; i <= 8; i++) {
     const existing = state.teams.find(t => t.team_slot === i);
     const isMine = existing?.owner_user_id === state.userId;
@@ -199,14 +244,12 @@ function buildParticipantTeams() {
     btn.type = 'button';
     btn.disabled = occupied;
     btn.style.setProperty('--team-color', teamColors[i - 1]);
-
     const hint = isMine ? 'Votre équipe — ouvrir' : occupied ? 'Déjà occupée' : 'Appuyez pour rejoindre';
     const statusClass = isMine ? 'mine' : occupied ? 'taken' : 'free';
     btn.innerHTML = `
       <div class="team-main"><span class="team-dot"></span><strong>Équipe ${i}</strong></div>
       <small class="team-hint">${hint}</small>
       <span class="team-status ${statusClass}">${isMine ? '✓ Réservée pour vous' : occupied ? 'Indisponible' : 'Libre'}</span>`;
-
     btn.addEventListener('click', () => reserveTeam(i, existing));
     grid.appendChild(btn);
   }
@@ -214,33 +257,25 @@ function buildParticipantTeams() {
 
 async function reserveTeam(slot, existing) {
   if (!state.participantSession) return;
-
   if (existing?.owner_user_id === state.userId) {
     state.team = slot;
     state.teamId = existing.id;
-    openBattle();
+    await openBattle();
     return;
   }
-
   const alreadyMine = state.teams.find(t => t.owner_user_id === state.userId);
   if (alreadyMine) {
     alert(`Vous avez déjà rejoint l’Équipe ${alreadyMine.team_slot}.`);
     return;
   }
-
   try {
-    const { data, error } = await db
-      .from('teams')
-      .insert({
-        session_id: state.participantSession.id,
-        team_slot: slot,
-        team_name: `Équipe ${slot}`,
-        team_color: teamColors[slot - 1],
-        owner_user_id: state.userId
-      })
-      .select()
-      .single();
-
+    const { data, error } = await db.from('teams').insert({
+      session_id: state.participantSession.id,
+      team_slot: slot,
+      team_name: `Équipe ${slot}`,
+      team_color: teamColors[slot - 1],
+      owner_user_id: state.userId
+    }).select().single();
     if (error) {
       if (error.code === '23505') {
         alert('Cette équipe vient d’être prise par un autre participant. Choisissez-en une autre.');
@@ -249,85 +284,195 @@ async function reserveTeam(slot, existing) {
       }
       throw error;
     }
-
     state.team = slot;
     state.teamId = data.id;
     await loadParticipantTeams();
-    openBattle();
+    await openBattle();
   } catch (error) {
     console.error(error);
     alert(`Impossible de rejoindre l’équipe : ${error.message}`);
   }
 }
 
-function openBattle() {
+async function openBattle() {
   document.getElementById('currentTeamBadge').textContent = `Équipe ${state.team}`;
-  loadRound();
+  await loadParticipantRound();
   showScreen('battle');
 }
 
-function buildTrainerTeams() {
-  const trainer = document.getElementById('trainerTeams');
-  trainer.innerHTML = '';
-  const teams = state.trainerSession ? state.teams : [];
-
-  for (let i = 1; i <= 8; i++) {
-    const existing = teams.find(t => t.team_slot === i);
-    const row = document.createElement('div');
-    row.className = 'trainer-team';
-    row.innerHTML = `<span><i class="team-dot" style="background:${teamColors[i - 1]}"></i>Équipe ${i}</span><span class="${existing ? 'state-live' : 'state-wait'}">${existing ? 'Connectée ✓' : 'En attente'}</span>`;
-    trainer.appendChild(row);
+async function refreshParticipantSession() {
+  if (!state.participantSession) return;
+  const { data, error } = await db.from('sessions').select('*').eq('id', state.participantSession.id).single();
+  if (error) throw error;
+  const previousRound = state.participantSession.current_round;
+  state.participantSession = data;
+  if (state.teamId && previousRound !== data.current_round) {
+    await loadParticipantRound(true);
+    showScreen('battle');
+  } else {
+    renderParticipantRoundState();
   }
-
-  document.getElementById('connectedTeamsCount').textContent = teams.length;
-  document.getElementById('connectedTeamsLabel').textContent = state.trainerSession ? 'connectées à cette session' : 'en attente d’une session';
 }
 
-function subscribeToTeams(sessionId, mode) {
-  if (state.realtimeChannel) db.removeChannel(state.realtimeChannel);
-
-  state.realtimeChannel = db
-    .channel(`teams-${sessionId}-${mode}-${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'teams', filter: `session_id=eq.${sessionId}` },
-      async () => {
-        if (mode === 'trainer') await loadTrainerTeams();
-        if (mode === 'participant') await loadParticipantTeams();
-      }
-    )
-    .subscribe();
-}
-
-function loadRound() {
-  const c = challenges[state.round];
-  document.getElementById('roundLabel').textContent = `MANCHE ${state.round + 1} / 3`;
+async function loadParticipantRound(force = false) {
+  if (!state.participantSession || !state.teamId) return;
+  const roundNumber = displayRoundNumber(state.participantSession);
+  const index = roundNumber - 1;
+  const c = challenges[index];
+  document.getElementById('roundLabel').textContent = `MANCHE ${roundNumber} / 3`;
   document.getElementById('challengeTitle').textContent = c.title;
   document.getElementById('challengeSituation').textContent = c.situation;
   document.getElementById('challengeMission').textContent = c.mission;
-  document.getElementById('trainerRound').textContent = `${state.round + 1}/3`;
-  document.getElementById('promptInput').value = '';
-  document.getElementById('resultInput').value = '';
-  document.getElementById('saveState').textContent = 'Non soumis';
-  document.getElementById('timer').textContent = '05:30';
-  document.getElementById('timerMessage').textContent = 'Le formateur lancera le chrono.';
+
+  const { data, error } = await db
+    .from('submissions')
+    .select('*')
+    .eq('session_id', state.participantSession.id)
+    .eq('team_id', state.teamId)
+    .eq('round_number', roundNumber)
+    .maybeSingle();
+  if (error) throw error;
+
+  state.currentSubmissionId = data?.id || null;
+  if (force || document.getElementById('activeRoundNumber').value !== String(roundNumber)) {
+    document.getElementById('promptInput').value = data?.prompt_text || '';
+    document.getElementById('resultInput').value = data?.ai_response_text || '';
+  }
+  document.getElementById('activeRoundNumber').value = String(roundNumber);
+  document.getElementById('saveState').textContent = data?.submitted_at ? submissionStatusText(data) : 'Non soumis';
+  renderParticipantRoundState(data);
 }
 
-document.getElementById('rctfToggle').addEventListener('click', () => {
-  const help = document.getElementById('rctfHelp');
-  help.classList.toggle('hidden');
-  document.getElementById('rctfToggle').textContent = help.classList.contains('hidden') ? 'Afficher le rappel RCTF' : 'Masquer le rappel RCTF';
-});
+function renderParticipantRoundState(existingSubmission = null) {
+  if (!state.participantSession) return;
+  const session = state.participantSession;
+  const roundNumber = displayRoundNumber(session);
+  const isBeforeFirstLaunch = session.current_round === 0;
+  const waiting = session.status === 'waiting';
+  const paused = session.status === 'paused';
+  const finished = session.status === 'finished';
+  const running = session.status === 'running';
 
-document.getElementById('submitRound').addEventListener('click', () => {
+  const statusBox = document.getElementById('participantRoundStatus');
+  const promptInput = document.getElementById('promptInput');
+  const resultInput = document.getElementById('resultInput');
+  const submit = document.getElementById('submitRound');
+
+  if (finished) {
+    statusBox.className = 'round-status finished';
+    statusBox.textContent = 'Battle terminée — le formateur peut maintenant lancer le débrief.';
+    promptInput.disabled = true;
+    resultInput.disabled = true;
+    submit.disabled = true;
+    submit.textContent = 'Battle terminée';
+    return;
+  }
+
+  if (isBeforeFirstLaunch || waiting) {
+    statusBox.className = 'round-status waiting';
+    statusBox.textContent = `Manche ${roundNumber} prête. Attendez le lancement du formateur.`;
+    promptInput.disabled = true;
+    resultInput.disabled = true;
+    submit.disabled = true;
+    submit.textContent = 'En attente du lancement';
+  } else if (paused) {
+    statusBox.className = 'round-status paused';
+    statusBox.textContent = 'Chrono en pause par le formateur. Vous pouvez continuer à préparer votre réponse.';
+    promptInput.disabled = false;
+    resultInput.disabled = false;
+    submit.disabled = false;
+    submit.textContent = 'Soumettre la manche';
+  } else if (running) {
+    statusBox.className = 'round-status running';
+    statusBox.textContent = 'Manche en cours — le chrono est commun à toutes les équipes.';
+    promptInput.disabled = false;
+    resultInput.disabled = false;
+    submit.disabled = false;
+  }
+  renderParticipantTimer();
+}
+
+function renderParticipantTimer() {
+  if (!state.participantSession) return;
+  const info = timerInfo(state.participantSession);
+  const timer = document.getElementById('timer');
+  const message = document.getElementById('timerMessage');
+  const submit = document.getElementById('submitRound');
+  timer.textContent = formatTime(info.remaining);
+  timer.parentElement.classList.toggle('expired', info.expired);
+
+  if (state.participantSession.status === 'running') {
+    if (info.expired) {
+      message.textContent = `Temps écoulé · +${formatTime(info.delay)}`;
+      if (!submit.disabled) submit.textContent = 'Soumettre hors délai';
+    } else {
+      message.textContent = 'Chrono lancé par le formateur.';
+      if (!submit.disabled) submit.textContent = 'Soumettre la manche';
+    }
+  } else if (state.participantSession.status === 'paused') {
+    message.textContent = 'Chrono en pause.';
+  } else if (state.participantSession.status === 'finished') {
+    message.textContent = 'Battle terminée.';
+  } else {
+    message.textContent = 'Le formateur lancera le chrono.';
+  }
+}
+
+function submissionStatusText(submission) {
+  if (!submission?.submitted_at) return 'Non soumis';
+  const delay = Number(submission.delay_seconds || 0);
+  return delay > 0 ? `✓ Soumis hors délai (+${formatTime(delay)})` : '✓ Soumis dans le temps';
+}
+
+async function submitCurrentRound() {
+  if (!state.participantSession || !state.teamId) return;
   const prompt = document.getElementById('promptInput').value.trim();
+  const aiResponse = document.getElementById('resultInput').value.trim();
   if (!prompt) {
     alert('Ajoutez au moins votre prompt avant de soumettre la manche.');
     return;
   }
-  document.getElementById('saveState').textContent = '✓ Prêt pour la sauvegarde V2.3';
-  showScreen('selfcheck');
-});
+  if (!['running', 'paused'].includes(state.participantSession.status)) {
+    alert('La manche n’est pas encore ouverte par le formateur.');
+    return;
+  }
+
+  const roundNumber = displayRoundNumber(state.participantSession);
+  const info = timerInfo(state.participantSession);
+  const delaySeconds = state.participantSession.status === 'running' ? info.delay : 0;
+  const payload = {
+    session_id: state.participantSession.id,
+    team_id: state.teamId,
+    round_number: roundNumber,
+    prompt_text: prompt,
+    ai_response_text: aiResponse,
+    submitted_at: new Date().toISOString(),
+    delay_seconds: delaySeconds
+  };
+
+  const button = document.getElementById('submitRound');
+  button.disabled = true;
+  button.textContent = 'Envoi…';
+  try {
+    let result;
+    if (state.currentSubmissionId) {
+      result = await db.from('submissions').update(payload).eq('id', state.currentSubmissionId).select().single();
+    } else {
+      result = await db.from('submissions').insert(payload).select().single();
+    }
+    if (result.error) throw result.error;
+    state.currentSubmissionId = result.data.id;
+    document.getElementById('saveState').textContent = submissionStatusText(result.data);
+    buildScores(result.data.self_score);
+    showScreen('selfcheck');
+  } catch (error) {
+    console.error(error);
+    alert(`Impossible d’enregistrer la réponse : ${error.message}`);
+  } finally {
+    button.disabled = false;
+    renderParticipantRoundState();
+  }
+}
 
 const scoreItems = [
   ["Pertinence", "Le résultat répond-il réellement au problème posé ?"],
@@ -336,17 +481,30 @@ const scoreItems = [
   ["Utilité managériale", "Pourriez-vous réellement vous appuyer sur ce résultat ?"]
 ];
 
-function buildScores() {
+function buildScores(existingTotal = null) {
   const grid = document.getElementById('scoreGrid');
-  grid.innerHTML = scoreItems.map(item => `
+  const defaults = existingTotal ? distributeScore(existingTotal) : [3,3,3,3];
+  grid.innerHTML = scoreItems.map((item, index) => `
     <article class="score-card">
       <h3>${item[0]}</h3><p>${item[1]}</p>
       <select class="score-select" aria-label="${item[0]}">
-        ${[1,2,3,4,5].map(n => `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n} / 5</option>`).join('')}
+        ${[1,2,3,4,5].map(n => `<option value="${n}" ${n === defaults[index] ? 'selected' : ''}>${n} / 5</option>`).join('')}
       </select>
     </article>`).join('');
   document.querySelectorAll('.score-select').forEach(s => s.addEventListener('change', updateTotal));
   updateTotal();
+}
+
+function distributeScore(total) {
+  const target = Math.min(20, Math.max(4, Number(total)));
+  const arr = [1,1,1,1];
+  let remaining = target - 4;
+  let i = 0;
+  while (remaining > 0) {
+    if (arr[i] < 5) { arr[i]++; remaining--; }
+    i = (i + 1) % 4;
+  }
+  return arr;
 }
 
 function updateTotal() {
@@ -354,44 +512,256 @@ function updateTotal() {
   document.getElementById('selfTotal').textContent = total;
 }
 
-document.getElementById('nextRound').addEventListener('click', () => {
-  if (state.round < challenges.length - 1) {
-    state.round++;
-    loadRound();
-    buildScores();
+async function saveSelfScore() {
+  if (!state.currentSubmissionId) return;
+  const total = [...document.querySelectorAll('.score-select')].reduce((sum, el) => sum + Number(el.value), 0);
+  const button = document.getElementById('nextRound');
+  button.disabled = true;
+  button.textContent = 'Enregistrement…';
+  try {
+    const { error } = await db.from('submissions').update({ self_score: total }).eq('id', state.currentSubmissionId);
+    if (error) throw error;
+    document.getElementById('selfcheckWaiting').classList.remove('hidden');
+    button.textContent = 'Autoévaluation enregistrée ✓';
     showScreen('battle');
-  } else showScreen('final');
+    document.getElementById('saveState').textContent = `✓ Soumis · autoévaluation ${total}/20`;
+  } catch (error) {
+    console.error(error);
+    alert(`Impossible d’enregistrer l’autoévaluation : ${error.message}`);
+    button.disabled = false;
+    button.textContent = 'Valider mon autoévaluation';
+  }
+}
+
+function buildTrainerTeams() {
+  const trainer = document.getElementById('trainerTeams');
+  trainer.innerHTML = '';
+  const teams = state.trainerSession ? state.teams : [];
+  const roundNumber = state.trainerSession ? displayRoundNumber(state.trainerSession) : 1;
+
+  for (let i = 1; i <= 8; i++) {
+    const existing = teams.find(t => t.team_slot === i);
+    const submission = existing ? state.submissions.find(s => s.team_id === existing.id && s.round_number === roundNumber) : null;
+    const row = document.createElement('div');
+    row.className = 'trainer-team';
+    let statusText = existing ? 'Connectée · en cours' : 'En attente';
+    let statusClass = existing ? 'state-live' : 'state-wait';
+    if (submission?.submitted_at) {
+      const delay = Number(submission.delay_seconds || 0);
+      statusText = delay > 0 ? `Soumis · +${formatTime(delay)}` : 'Soumis ✓';
+      statusClass = delay > 0 ? 'state-late' : 'state-done';
+    }
+    row.innerHTML = `<span><i class="team-dot" style="background:${teamColors[i - 1]}"></i>Équipe ${i}</span><span class="${statusClass}">${statusText}</span>`;
+    trainer.appendChild(row);
+  }
+
+  document.getElementById('connectedTeamsCount').textContent = teams.length;
+  document.getElementById('connectedTeamsLabel').textContent = state.trainerSession ? 'connectées à cette session' : 'en attente d’une session';
+  const submittedCount = state.submissions.filter(s => s.round_number === roundNumber && s.submitted_at).length;
+  document.getElementById('submittedTeamsCount').textContent = submittedCount;
+}
+
+function renderTrainerControls() {
+  const session = state.trainerSession;
+  const startButton = document.getElementById('startRoundButton');
+  const pauseButton = document.getElementById('pauseRoundButton');
+  const nextButton = document.getElementById('nextTrainerRoundButton');
+  if (!session) {
+    startButton.disabled = pauseButton.disabled = nextButton.disabled = true;
+    return;
+  }
+
+  const roundNumber = displayRoundNumber(session);
+  document.getElementById('trainerRound').textContent = `${roundNumber}/3`;
+  document.getElementById('trainerRoundName').textContent = challenges[roundNumber - 1].title;
+  document.getElementById('trainerControlTitle').textContent = `Manche ${roundNumber} — ${challenges[roundNumber - 1].title}`;
+
+  if (session.status === 'running') {
+    startButton.disabled = true;
+    startButton.textContent = 'Manche en cours';
+    pauseButton.disabled = false;
+    pauseButton.textContent = '⏸ Mettre en pause';
+  } else if (session.status === 'paused') {
+    startButton.disabled = false;
+    startButton.textContent = '▶ Reprendre';
+    pauseButton.disabled = true;
+  } else if (session.status === 'finished') {
+    startButton.disabled = true;
+    pauseButton.disabled = true;
+    nextButton.disabled = true;
+    startButton.textContent = 'Battle terminée';
+  } else {
+    startButton.disabled = false;
+    startButton.textContent = `▶ Lancer la manche ${roundNumber}`;
+    pauseButton.disabled = true;
+  }
+
+  nextButton.disabled = session.status === 'finished';
+  nextButton.textContent = roundNumber >= 3 ? 'Terminer la battle' : `Préparer la manche ${roundNumber + 1} →`;
+  renderTrainerTimer();
+}
+
+function renderTrainerTimer() {
+  if (!state.trainerSession) return;
+  const info = timerInfo(state.trainerSession);
+  const timerText = document.getElementById('trainerTimerText');
+  const statusText = document.getElementById('trainerTimerStatus');
+  timerText.textContent = formatTime(info.remaining);
+  document.getElementById('trainerTimerStat').textContent = formatTime(info.remaining);
+  timerText.classList.toggle('late-timer', info.expired);
+
+  if (state.trainerSession.status === 'running') {
+    statusText.textContent = info.expired ? `Temps écoulé · retard +${formatTime(info.delay)}` : 'Chrono en cours sur tous les appareils';
+  } else if (state.trainerSession.status === 'paused') {
+    statusText.textContent = 'Chrono en pause';
+  } else if (state.trainerSession.status === 'finished') {
+    statusText.textContent = 'Battle terminée';
+  } else {
+    statusText.textContent = 'Prête à être lancée';
+  }
+}
+
+async function updateTrainerSession(patch) {
+  if (!state.trainerSession) return;
+  const { data, error } = await db.from('sessions').update(patch).eq('id', state.trainerSession.id).select().single();
+  if (error) throw error;
+  state.trainerSession = data;
+  renderTrainerSession();
+  await refreshTrainerData();
+}
+
+async function startOrResumeRound() {
+  if (!state.trainerSession) return;
+  try {
+    const session = state.trainerSession;
+    if (session.status === 'paused') {
+      await updateTrainerSession({ status: 'running', round_started_at: new Date().toISOString() });
+    } else {
+      const roundNumber = displayRoundNumber(session);
+      await updateTrainerSession({
+        current_round: roundNumber,
+        status: 'running',
+        round_started_at: new Date().toISOString(),
+        round_duration_seconds: ROUND_SECONDS
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    alert(`Impossible de lancer la manche : ${error.message}`);
+  }
+}
+
+async function pauseRound() {
+  if (!state.trainerSession || state.trainerSession.status !== 'running') return;
+  try {
+    const info = timerInfo(state.trainerSession);
+    await updateTrainerSession({
+      status: 'paused',
+      round_started_at: null,
+      round_duration_seconds: info.remaining
+    });
+  } catch (error) {
+    console.error(error);
+    alert(`Impossible de mettre en pause : ${error.message}`);
+  }
+}
+
+async function prepareNextRound() {
+  if (!state.trainerSession) return;
+  const current = displayRoundNumber(state.trainerSession);
+  const confirmed = window.confirm(current >= 3
+    ? 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.'
+    : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`);
+  if (!confirmed) return;
+  try {
+    if (current >= 3) {
+      await updateTrainerSession({ status: 'finished', round_started_at: null, round_duration_seconds: 0 });
+    } else {
+      await updateTrainerSession({
+        current_round: current + 1,
+        status: 'waiting',
+        round_started_at: null,
+        round_duration_seconds: ROUND_SECONDS
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    alert(`Impossible de changer de manche : ${error.message}`);
+  }
+}
+
+function subscribeParticipant(sessionId) {
+  if (state.participantChannel) db.removeChannel(state.participantChannel);
+  state.participantChannel = db
+    .channel(`participant-${sessionId}-${Math.random().toString(36).slice(2)}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `session_id=eq.${sessionId}` }, loadParticipantTeams)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, async payload => {
+      const previousRound = state.participantSession?.current_round;
+      state.participantSession = payload.new;
+      if (state.teamId && previousRound !== payload.new.current_round) {
+        await loadParticipantRound(true);
+        showScreen('battle');
+      } else {
+        renderParticipantRoundState();
+      }
+    })
+    .subscribe();
+}
+
+function subscribeTrainer(sessionId) {
+  if (state.trainerChannel) db.removeChannel(state.trainerChannel);
+  state.trainerChannel = db
+    .channel(`trainer-${sessionId}-${Math.random().toString(36).slice(2)}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `session_id=eq.${sessionId}` }, refreshTrainerData)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions', filter: `session_id=eq.${sessionId}` }, refreshTrainerData)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, async payload => {
+      state.trainerSession = payload.new;
+      renderTrainerSession();
+      await refreshTrainerData();
+    })
+    .subscribe();
+}
+
+document.getElementById('rctfToggle').addEventListener('click', () => {
+  const help = document.getElementById('rctfHelp');
+  help.classList.toggle('hidden');
+  document.getElementById('rctfToggle').textContent = help.classList.contains('hidden') ? 'Afficher le rappel RCTF' : 'Masquer le rappel RCTF';
 });
 
-function buildLeaderboard() {
-  const scores = [18.5, 17, 16.5, 15, 14.5, 13, 12.5, 11];
-  document.getElementById('leaderboard').innerHTML = scores.map((score, i) => `<div class="leader-row"><strong>${i + 1}</strong><span>Équipe ${i + 1}</span><span>${score}/20</span></div>`).join('');
-}
+document.getElementById('submitRound').addEventListener('click', submitCurrentRound);
+document.getElementById('nextRound').addEventListener('click', saveSelfScore);
+document.getElementById('startRoundButton').addEventListener('click', startOrResumeRound);
+document.getElementById('pauseRoundButton').addEventListener('click', pauseRound);
+document.getElementById('nextTrainerRoundButton').addEventListener('click', prepareNextRound);
 
 document.getElementById('publishRanking').addEventListener('click', e => {
   e.currentTarget.textContent = e.currentTarget.textContent === 'Publier' ? 'Publié ✓' : 'Publier';
 });
 
-function resetBattleLocal() {
-  const confirmed = window.confirm('Remettre l’interface locale à zéro ?\n\nLa suppression réelle d’une session Supabase sera ajoutée dans une prochaine étape.');
+async function resetBattle() {
+  if (!state.trainerSession) {
+    alert('Aucune session active à réinitialiser.');
+    return;
+  }
+  const confirmed = window.confirm('Réinitialiser cette session ?\n\nLes équipes et leurs productions seront supprimées, puis la session reviendra à la manche 1 en attente.');
   if (!confirmed) return;
-  state.round = 0;
-  document.getElementById('promptInput').value = '';
-  document.getElementById('resultInput').value = '';
-  document.getElementById('saveState').textContent = 'Non soumis';
-  document.getElementById('publishRanking').textContent = 'Publier';
-  document.querySelectorAll('.score-select').forEach(select => select.value = '3');
-  updateTotal();
-  loadRound();
-  alert('Interface locale remise à zéro. La session Supabase reste intacte pour ce test.');
+  try {
+    const { error: subError } = await db.from('submissions').delete().eq('session_id', state.trainerSession.id);
+    if (subError) throw subError;
+    const { error: teamError } = await db.from('teams').delete().eq('session_id', state.trainerSession.id);
+    if (teamError) throw teamError;
+    await updateTrainerSession({ current_round: 0, status: 'waiting', round_started_at: null, round_duration_seconds: ROUND_SECONDS });
+    alert('Session remise à zéro. Le code de session reste identique.');
+  } catch (error) {
+    console.error(error);
+    alert(`Impossible de réinitialiser la session : ${error.message}`);
+  }
 }
 
-document.getElementById('resetBattle').addEventListener('click', resetBattleLocal);
+document.getElementById('resetBattle').addEventListener('click', resetBattle);
 document.getElementById('createSessionButton').addEventListener('click', createTrainerSession);
 document.getElementById('joinSessionButton').addEventListener('click', joinSessionByCode);
-document.getElementById('sessionCodeInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') joinSessionByCode();
-});
+document.getElementById('sessionCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinSessionByCode(); });
 document.getElementById('sessionCodeInput').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 });
@@ -399,8 +769,7 @@ document.getElementById('sessionCodeInput').addEventListener('input', e => {
 async function init() {
   buildTrainerTeams();
   buildScores();
-  buildLeaderboard();
-  loadRound();
+  startTimerLoop();
   try {
     await ensureAnonymousAuth();
   } catch (error) {

@@ -64,6 +64,7 @@
         <article class="panel session-join-panel">
           <label for="sessionCodeInput">Code de session</label>
           <div class="inline-form">
+            <input id="activeRoundNumber" type="hidden" value="1" />
             <input id="sessionCodeInput" class="code-input" type="text" inputmode="text" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Code de session" />
             <button class="primary" id="joinSessionButton" type="button">Valider le code</button>
           </div>
@@ -112,7 +113,7 @@
               <textarea id="promptInput" rows="9" placeholder="Écrivez ici le prompt que votre équipe souhaite soumettre…"></textarea>
               <label for="resultInput">Résultat obtenu avec votre IA <span>(la sauvegarde Supabase des productions arrive à l’étape suivante)</span></label>
               <textarea id="resultInput" rows="7" placeholder="Collez ici la réponse obtenue dans votre IA…"></textarea>
-              <div class="submit-row"><button class="primary" id="submitRound" type="button">Soumettre la manche</button><span class="save-state" id="saveState">Non soumis</span></div>
+              <div id="participantRoundStatus" class="round-status waiting">Manche prête. Attendez le lancement du formateur.</div><div class="submit-row"><button class="primary" id="submitRound" type="button">En attente du lancement</button><span class="save-state" id="saveState">Non soumis</span></div>
             </article>
           </div>
         </div>
@@ -124,15 +125,15 @@
           <div class="score-total"><span>Votre score</span><strong id="selfTotal">12</strong><small>/20</small></div>
         </div>
         <div class="score-grid" id="scoreGrid"></div>
-        <div class="bottom-actions"><button class="secondary" type="button" data-go="battle">← Modifier ma réponse</button><button class="primary" id="nextRound" type="button">Manche suivante →</button></div>
+        <p id="selfcheckWaiting" class="form-feedback success hidden">Autoévaluation enregistrée. Vous reviendrez automatiquement au prochain briefing lorsque le formateur préparera la manche suivante.</p><div class="bottom-actions"><button class="secondary" type="button" data-go="battle">← Modifier ma réponse</button><button class="primary" id="nextRound" type="button">Valider mon autoévaluation</button></div>
       </section>
 
       <section id="trainer" class="screen">
         <div class="section-head">
           <div>
-            <p class="eyebrow">ESPACE FORMATEUR · V2.2 CONNECTÉE</p>
+            <p class="eyebrow">ESPACE FORMATEUR · V2.3 · CHRONO COLLECTIF</p>
             <h1>Piloter la Prompt Battle</h1>
-            <p class="muted">Créez une session, affichez son code aux participants et observez les équipes se connecter en temps réel.</p>
+            <p class="muted">Créez une session, lancez les manches et pilotez un chrono commun de 5 min 30 sur tous les appareils.</p>
           </div>
           <div class="trainer-head-actions"><button class="danger-ghost" type="button" id="resetBattle">Remettre la battle à zéro</button><button class="ghost" type="button" data-go="home">← Accueil</button></div>
         </div>
@@ -149,12 +150,27 @@
           </div>
         </article>
 
+        <article class="panel trainer-control-panel">
+          <div class="panel-title-row">
+            <div><p class="panel-label">PILOTAGE DE LA MANCHE</p><h2 id="trainerControlTitle">Manche 1 — Le mail impossible</h2></div>
+            <div class="trainer-master-timer"><strong id="trainerTimerText">05:30</strong><small id="trainerTimerStatus">Prête à être lancée</small></div>
+          </div>
+          <div class="trainer-control-actions">
+            <button class="primary" id="startRoundButton" type="button" disabled>▶ Lancer la manche 1</button>
+            <button class="secondary" id="pauseRoundButton" type="button" disabled>⏸ Mettre en pause</button>
+            <button class="ghost" id="nextTrainerRoundButton" type="button" disabled>Préparer la manche 2 →</button>
+          </div>
+          <p class="note">Le lancement, la pause et le passage à la manche suivante sont synchronisés sur tous les appareils de la session.</p>
+        </article>
+
         <div class="trainer-stats">
           <div class="stat"><span>Équipes</span><strong>8</strong><small>créneaux disponibles</small></div>
           <div class="stat"><span>Connectées</span><strong id="connectedTeamsCount">0</strong><small id="connectedTeamsLabel">en attente d’une session</small></div>
-          <div class="stat"><span>Manche</span><strong id="trainerRound">1/3</strong><small>Le mail impossible</small></div>
-          <div class="stat"><span>Chrono</span><strong>05:30</strong><small>contrôle formateur à venir</small></div>
+          <div class="stat"><span>Manche</span><strong id="trainerRound">1/3</strong><small id="trainerRoundName">Le mail impossible</small></div>
+          <div class="stat"><span>Chrono</span><strong id="trainerTimerStat">05:30</strong><small>commun à toutes les équipes</small></div>
         </div>
+
+        <div class="submission-summary"><span>Productions reçues pour la manche : <strong id="submittedTeamsCount">0</strong></span><span>Les retards restent acceptés et sont signalés.</span></div>
 
         <div class="trainer-layout">
           <article class="panel">
@@ -174,7 +190,7 @@
       </section>
     </main>
 
-    <footer><span>Prompt Battle · Managers en santé</span><span>V2.2 · connexion Supabase</span></footer>
+    <footer><span>Prompt Battle · Managers en santé</span><span>V2.3 · chrono collectif & soumissions</span></footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

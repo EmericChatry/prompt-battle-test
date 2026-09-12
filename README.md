@@ -1,20 +1,25 @@
-# Prompt Battle — Managers en santé — V2.2
+# Prompt Battle — Managers en santé — V2.3
 
-Première version multijoueur connectée à Supabase.
+Version collaborative de test.
 
-## Ce que cette version teste
+## Nouveautés
+- chrono commun 5 min 30 piloté par le formateur ;
+- lancement / pause / reprise synchronisés ;
+- passage à la manche suivante piloté par le formateur ;
+- soumission du prompt et du résultat dans Supabase ;
+- autoévaluation enregistrée ;
+- statut de soumission visible côté formateur ;
+- soumissions hors délai acceptées et signalées ;
+- réinitialisation réelle d'une session (équipes + productions) en conservant le même code.
 
-- authentification anonyme automatique ;
-- création d'une session par le formateur ;
-- code de session à 6 caractères ;
-- inscription d'un participant dans l'une des 8 équipes ;
-- équipes occupées visibles par les autres participants ;
-- apparition en temps réel d'une équipe connectée dans l'espace formateur.
+## Migration Supabase requise
+Exécuter une fois :
 
-## Avant le test
+```sql
+alter table public.sessions drop constraint if exists sessions_status_check;
+alter table public.sessions
+add constraint sessions_status_check
+check (status in ('waiting', 'running', 'paused', 'review', 'finished'));
+```
 
-Dans Supabase, ajouter les tables à la publication Realtime et empêcher un même utilisateur de réserver plusieurs équipes dans la même session (SQL fourni par ChatGPT lors de l'installation).
-
-## Important
-
-La sauvegarde des prompts, le chrono collectif de 5 min 30, la notation et la suppression réelle des sessions seront ajoutés dans les versions suivantes.
+Puis remplacer les 4 fichiers du dépôt de test par cette V2.3.
