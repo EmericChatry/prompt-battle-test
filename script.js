@@ -332,11 +332,12 @@ function clearParticipantSyncLoop() {
 
 function startParticipantSyncLoop() {
   clearParticipantSyncLoop();
-  // Realtime reste le canal principal. Ce contrôle léger sert de filet de sécurité
-  // si un téléphone met l'onglet en veille ou manque un évènement réseau.
+  // Realtime reste le canal principal. En complément, le téléphone relit régulièrement
+  // l'état de la session même si son état local pense encore que la manche est en cours.
+  // Cela permet de récupérer une fin de battle ou une publication de classement ratée
+  // après une mise en veille, un changement d'écran ou une coupure réseau mobile.
   state.participantSyncInterval = setInterval(async () => {
     if (!state.participantSession?.id || !state.teamId) return;
-    if (state.participantSession.status !== 'finished' && !state.participantSession.ranking_published) return;
     try { await refreshParticipantSession(); } catch (error) { console.debug('Synchronisation participant différée', error); }
   }, 3000);
 }
@@ -1134,6 +1135,12 @@ document.addEventListener('visibilitychange', async () => {
 window.addEventListener('focus', async () => {
   if (state.participantSession?.id && state.teamId) {
     try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation au focus', error); }
+  }
+});
+
+window.addEventListener('online', async () => {
+  if (state.participantSession?.id && state.teamId) {
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation au retour réseau', error); }
   }
 });
 

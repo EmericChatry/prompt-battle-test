@@ -1,4 +1,4 @@
-# Prompt Battle — V2.8
+# Prompt Battle — V2.9
 
 Correctif de pilotage formateur.
 
@@ -7,3 +7,7 @@ Correctif de pilotage formateur.
 - La manche 3 peut être clôturée immédiatement pour terminer la battle.
 - Les fichiers CSS/JS utilisent un numéro de version dans `index.html` afin d’éviter qu’un navigateur ou GitHub Pages conserve une ancienne version en cache.
 - Aucun changement SQL n’est nécessaire.
+
+
+## Correctif V2.9
+Le téléphone resynchronise désormais l’état de la session toutes les 3 secondes pendant toute la participation, et non uniquement après avoir déjà détecté localement la fin de battle. Cela fiabilise le basculement vers l’écran d’attente et l’ouverture automatique du classement publié. Une resynchronisation est aussi déclenchée au retour du réseau.
