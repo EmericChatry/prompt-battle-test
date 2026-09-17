@@ -26,7 +26,7 @@
           <div class="hero-copy">
             <p class="eyebrow">FORMATION-ACTION · IA & MANAGEMENT</p>
             <h1 class="hero-title">Qui donnera le meilleur brief à l'IA&nbsp;?</h1>
-            <p class="lead">Trois défis, un temps commun et une méthode partagée : <strong>RCTF</strong>. L'objectif n'est pas d'écrire le prompt le plus compliqué, mais d'obtenir le résultat le plus utile.</p>
+            <p class="lead">Deux défis, un temps commun et une méthode partagée : <strong>RCTF</strong>. L'objectif n'est pas d'écrire le prompt le plus compliqué, mais d'obtenir le résultat le plus utile.</p>
             <div class="hero-actions">
               <button class="primary" type="button" data-go="join">Rejoindre une partie</button>
               <button class="secondary" type="button" data-go="trainer">Espace formateur</button>
@@ -83,13 +83,13 @@
       <section id="battle" class="screen">
         <div class="battle-head">
           <div>
-            <p class="eyebrow" id="roundLabel">MANCHE 1 / 3</p>
+            <p class="eyebrow" id="roundLabel">MANCHE 1 / 2</p>
             <h1 id="challengeTitle">Le mail impossible</h1>
             <div class="team-badge" id="currentTeamBadge">Équipe 1</div>
           </div>
           <div class="timer-block">
             <span>Temps commun</span>
-            <strong id="timer">05:30</strong>
+            <strong id="timer">12:00</strong>
             <small id="timerMessage">Le formateur lancera le chrono.</small>
           </div>
         </div>
@@ -113,8 +113,17 @@
             <article class="panel form-panel">
               <label for="promptInput">Votre prompt final</label>
               <textarea id="promptInput" rows="9" placeholder="Écrivez ici le prompt que votre équipe souhaite soumettre…"></textarea>
+              <div class="ai-links-row">
+                <button class="tiny" type="button" id="copyPromptButton">📋 Copier le prompt</button>
+                <a class="tiny ai-link" href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT ↗</a>
+                <a class="tiny ai-link" href="https://claude.ai/new" target="_blank" rel="noopener">Claude ↗</a>
+                <a class="tiny ai-link" href="https://gemini.google.com/app" target="_blank" rel="noopener">Gemini ↗</a>
+                <a class="tiny ai-link" href="https://copilot.microsoft.com" target="_blank" rel="noopener">Copilot ↗</a>
+              </div>
               <label for="resultInput">Résultat obtenu avec votre IA <span>(collez la réponse que vous souhaitez soumettre)</span></label>
               <textarea id="resultInput" rows="7" placeholder="Collez ici la réponse obtenue dans votre IA…"></textarea>
+              <label for="promptCountInput">Combien de prompts avez-vous rédigés avant cette réponse finale ? <span>(facultatif)</span></label>
+              <input id="promptCountInput" class="number-input" type="number" min="1" inputmode="numeric" placeholder="Ex : 3" />
               <div id="participantRoundStatus" class="round-status waiting">Manche prête. Attendez le lancement du formateur.</div><div class="submit-row"><button class="primary" id="submitRound" type="button">En attente du lancement</button><span class="save-state" id="saveState">Non soumis</span></div>
             </article>
           </div>
@@ -158,7 +167,7 @@
         <article class="panel trainer-control-panel">
           <div class="panel-title-row">
             <div><p class="panel-label">PILOTAGE DE LA MANCHE</p><h2 id="trainerControlTitle">Manche 1 — Le mail impossible</h2></div>
-            <div class="trainer-master-timer"><strong id="trainerTimerText">05:30</strong><small id="trainerTimerStatus">Prête à être lancée</small></div>
+            <div class="trainer-master-timer"><strong id="trainerTimerText">12:00</strong><small id="trainerTimerStatus">Prête à être lancée</small></div>
           </div>
           <div class="trainer-control-actions">
             <button class="primary" id="startRoundButton" type="button" disabled>▶ Lancer la manche 1</button>
@@ -171,8 +180,8 @@
         <div class="trainer-stats">
           <div class="stat"><span>Équipes</span><strong>8</strong><small>créneaux disponibles</small></div>
           <div class="stat"><span>Connectées</span><strong id="connectedTeamsCount">0</strong><small id="connectedTeamsLabel">en attente d'une session</small></div>
-          <div class="stat"><span>Manche</span><strong id="trainerRound">1/3</strong><small id="trainerRoundName">Le mail impossible</small></div>
-          <div class="stat"><span>Chrono</span><strong id="trainerTimerStat">05:30</strong><small>commun à toutes les équipes</small></div>
+          <div class="stat"><span>Manche</span><strong id="trainerRound">1/2</strong><small id="trainerRoundName">Le mail impossible</small></div>
+          <div class="stat"><span>Chrono</span><strong id="trainerTimerStat">12:00</strong><small>commun à toutes les équipes</small></div>
         </div>
 
         <div class="submission-summary"><span>Productions reçues pour la manche : <strong id="submittedTeamsCount">0</strong></span><span>Les retards restent acceptés et sont signalés.</span></div>
@@ -201,7 +210,6 @@
             <div class="round-tabs" id="reviewRoundTabs">
               <button class="tiny round-tab active" type="button" data-review-round="1">Manche 1</button>
               <button class="tiny round-tab" type="button" data-review-round="2">Manche 2</button>
-              <button class="tiny round-tab" type="button" data-review-round="3">Manche 3</button>
             </div>
           </div>
           <div class="review-grid">
@@ -220,7 +228,7 @@
 
       <section id="ranking" class="screen">
         <div class="section-head">
-          <div><p class="eyebrow">CLASSEMENT PUBLIÉ</p><h1>Résultats de la Prompt Battle</h1><p class="muted">Le classement est calculé à partir des évaluations du formateur. L'autoévaluation reste un outil de recul pédagogique et n'entre pas dans le classement.</p></div>
+          <div><p class="eyebrow">CLASSEMENT PUBLIÉ</p><h1>Résultats de la Prompt Battle</h1><p class="muted">Le classement est calculé à partir des évaluations du formateur, sur les deux manches de la Prompt Battle.</p></div>
           <button class="ghost" type="button" data-go="battle">← Retour à ma manche</button>
         </div>
         <article class="panel ranking-public-panel">
@@ -249,7 +257,7 @@
         <div class="final-card">
           <p class="eyebrow">BATTLE TERMINÉE</p>
           <h1>Place au débrief collectif.</h1>
-          <p>Vos trois manches sont terminées. Le classement apparaîtra sur votre téléphone dès que le formateur décidera de le publier.</p>
+          <p>Vos deux manches sont terminées. Le classement apparaîtra sur votre téléphone dès que le formateur décidera de le publier.</p>
           <div class="final-ranking-state" id="finalRankingState">
             <span class="waiting-dot"></span>
             <div><strong id="finalRankingStatus">Classement en attente</strong><p>Restez sur cet écran : les résultats s'afficheront automatiquement dès leur publication.</p></div>
