@@ -3,6 +3,7 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_aGRxie9hlojGMP1Sttz9hg_dn4XbLc-
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const ROUND_SECONDS = 720;
+const RESTORE_WINDOW_HOURS = 10;
 const challenges = [
   {
     title: "Le mail impossible",
@@ -1278,11 +1279,13 @@ async function restoreTrainerSession() {
     return;
   }
   try {
+    const cutoff = new Date(Date.now() - RESTORE_WINDOW_HOURS * 3600 * 1000).toISOString();
     const { data, error } = await db
       .from('sessions')
       .select('*')
       .eq('created_by', state.userId)
       .neq('status', 'finished')
+      .gte('created_at', cutoff)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
