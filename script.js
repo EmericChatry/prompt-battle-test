@@ -477,6 +477,7 @@ async function loadParticipantRound(force = false) {
   if (force || document.getElementById('activeRoundNumber').value !== String(roundNumber)) {
     document.getElementById('promptInput').value = data?.prompt_text || '';
     document.getElementById('resultInput').value = data?.ai_response_text || '';
+    document.getElementById('promptCountInput').value = data?.prompt_count ?? '';
   }
   document.getElementById('activeRoundNumber').value = String(roundNumber);
   document.getElementById('saveState').textContent = data?.submitted_at ? submissionStatusText(data) : 'Non soumis';
@@ -496,6 +497,7 @@ function renderParticipantRoundState(existingSubmission = null) {
   const statusBox = document.getElementById('participantRoundStatus');
   const promptInput = document.getElementById('promptInput');
   const resultInput = document.getElementById('resultInput');
+  const promptCountInput = document.getElementById('promptCountInput');
   const submit = document.getElementById('submitRound');
 
   if (finished) {
@@ -503,6 +505,7 @@ function renderParticipantRoundState(existingSubmission = null) {
     statusBox.textContent = 'Battle terminée — le formateur peut maintenant lancer le débrief.';
     promptInput.disabled = true;
     resultInput.disabled = true;
+    promptCountInput.disabled = true;
     submit.disabled = true;
     submit.textContent = 'Battle terminée';
     renderParticipantRankingAvailability();
@@ -515,6 +518,7 @@ function renderParticipantRoundState(existingSubmission = null) {
     statusBox.textContent = `Manche ${roundNumber} prête. Attendez le lancement du formateur.`;
     promptInput.disabled = true;
     resultInput.disabled = true;
+    promptCountInput.disabled = true;
     submit.disabled = true;
     submit.textContent = 'En attente du lancement';
   } else if (paused) {
@@ -522,6 +526,7 @@ function renderParticipantRoundState(existingSubmission = null) {
     statusBox.textContent = 'Chrono en pause par le formateur. Vous pouvez continuer à préparer votre réponse.';
     promptInput.disabled = false;
     resultInput.disabled = false;
+    promptCountInput.disabled = false;
     submit.disabled = false;
     submit.textContent = 'Soumettre la manche';
   } else if (running) {
@@ -529,6 +534,7 @@ function renderParticipantRoundState(existingSubmission = null) {
     statusBox.textContent = 'Manche en cours — le chrono est commun à toutes les équipes.';
     promptInput.disabled = false;
     resultInput.disabled = false;
+    promptCountInput.disabled = false;
     submit.disabled = false;
   }
   renderParticipantTimer();
@@ -570,6 +576,8 @@ async function submitCurrentRound() {
   if (!state.participantSession || !state.teamId) return;
   const prompt = document.getElementById('promptInput').value.trim();
   const aiResponse = document.getElementById('resultInput').value.trim();
+  const promptCountRaw = document.getElementById('promptCountInput').value;
+  const promptCount = promptCountRaw ? Number(promptCountRaw) : null;
   if (!prompt) {
     alert('Ajoutez au moins votre prompt avant de soumettre la manche.');
     return;
@@ -588,6 +596,7 @@ async function submitCurrentRound() {
     round_number: roundNumber,
     prompt_text: prompt,
     ai_response_text: aiResponse,
+    prompt_count: promptCount,
     submitted_at: new Date().toISOString(),
     delay_seconds: delaySeconds
   };
@@ -688,8 +697,9 @@ function renderReviewList() {
     const team = state.teams.find(t => t.id === sub.team_id);
     const evaluation = state.evaluations.find(e => e.submission_id === sub.id);
     const delay = Number(sub.delay_seconds || 0);
+    const promptCountLabel = sub.prompt_count ? ` · ${sub.prompt_count} prompt${sub.prompt_count > 1 ? 's' : ''}` : '';
     return `<button class="review-list-item ${state.selectedSubmissionId === sub.id ? 'active' : ''}" type="button" data-review-id="${sub.id}">
-      <span><span class="review-team-name"><i class="team-dot" style="background:${teamColors[(team?.team_slot || 1) - 1]}"></i>${team?.team_name || 'Équipe'}</span><small>${delay > 0 ? `Hors délai +${formatTime(delay)}` : 'Dans le temps'}</small></span>
+      <span><span class="review-team-name"><i class="team-dot" style="background:${teamColors[(team?.team_slot || 1) - 1]}"></i>${team?.team_name || 'Équipe'}</span><small>${delay > 0 ? `Hors délai +${formatTime(delay)}` : 'Dans le temps'}${promptCountLabel}</small></span>
       <span class="review-score-chip">${evaluation ? `${evaluation.total}/20` : 'À noter'}</span>
     </button>`;
   }).join('');
@@ -728,8 +738,9 @@ function renderReviewDetail(submissionId) {
     ['Utilité managériale', 'Le manager pourrait-il réellement utiliser ou adapter cette production ?']
   ];
   const delay = Number(sub.delay_seconds || 0);
+  const promptCountLabel = sub.prompt_count ? ` · ${sub.prompt_count} prompt${sub.prompt_count > 1 ? 's' : ''}` : '';
   detail.innerHTML = `<div class="review-production">
-    <div class="review-meta"><div><p class="panel-label">MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title.toUpperCase()}</p><h3>${team?.team_name || 'Équipe'}</h3></div><span class="review-self">${delay > 0 ? `+${formatTime(delay)}` : 'dans le temps'}</span></div>
+    <div class="review-meta"><div><p class="panel-label">MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title.toUpperCase()}</p><h3>${team?.team_name || 'Équipe'}</h3></div><span class="review-self">${delay > 0 ? `+${formatTime(delay)}` : 'dans le temps'}${promptCountLabel}</span></div>
     <div class="production-block"><p class="panel-label">PROMPT</p><p>${escapeHtml(sub.prompt_text || '—')}</p></div>
     <div class="production-block"><p class="panel-label">RÉSULTAT IA</p><p>${escapeHtml(sub.ai_response_text || 'Aucun résultat IA déposé.')}</p></div>
     <div class="evaluation-grid">
@@ -849,13 +860,14 @@ function showProjection(submissionId) {
   if (!sub) return;
   const team = state.teams.find(t => t.id === sub.team_id);
   const evaluation = state.evaluations.find(e => e.submission_id === sub.id);
+  const promptCountLabel = sub.prompt_count ? `${sub.prompt_count} prompt${sub.prompt_count > 1 ? 's' : ''} · ` : '';
   document.getElementById('projectionRoundLabel').textContent = `MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title}`;
   document.getElementById('projectionTeamTitle').textContent = team?.team_name || 'Production';
   document.getElementById('projectionPrompt').textContent = sub.prompt_text || '—';
   document.getElementById('projectionResponse').textContent = sub.ai_response_text || 'Aucun résultat IA déposé.';
   document.getElementById('projectionScore').innerHTML = evaluation
-    ? `<span>Évaluation formateur · Pertinence ${evaluation.pertinence}/5 · Précision ${evaluation.precision}/5 · Contexte ${evaluation.context_score}/5 · Utilité ${evaluation.utility}/5</span><strong>${evaluation.total}/20</strong>`
-    : '<span>Production non encore notée.</span><strong>—/20</strong>';
+    ? `<span>${promptCountLabel}Évaluation formateur · Pertinence ${evaluation.pertinence}/5 · Précision ${evaluation.precision}/5 · Contexte ${evaluation.context_score}/5 · Utilité ${evaluation.utility}/5</span><strong>${evaluation.total}/20</strong>`
+    : `<span>${promptCountLabel}Production non encore notée.</span><strong>—/20</strong>`;
   showScreen('projection');
 }
 
@@ -1177,6 +1189,23 @@ document.getElementById('rctfToggle').addEventListener('click', () => {
   const help = document.getElementById('rctfHelp');
   help.classList.toggle('hidden');
   document.getElementById('rctfToggle').textContent = help.classList.contains('hidden') ? 'Afficher le rappel RCTF' : 'Masquer le rappel RCTF';
+});
+
+document.getElementById('copyPromptButton').addEventListener('click', async () => {
+  const promptText = document.getElementById('promptInput').value;
+  if (!promptText.trim()) {
+    alert('Écrivez votre prompt avant de le copier.');
+    return;
+  }
+  const btn = document.getElementById('copyPromptButton');
+  try {
+    await navigator.clipboard.writeText(promptText);
+    const original = btn.textContent;
+    btn.textContent = '✓ Copié';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch (error) {
+    alert('Impossible de copier automatiquement. Sélectionnez le texte et copiez-le manuellement.');
+  }
 });
 
 document.getElementById('submitRound').addEventListener('click', submitCurrentRound);
