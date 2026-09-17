@@ -6,13 +6,13 @@ const ROUND_SECONDS = 720;
 const challenges = [
   {
     title: "Le mail impossible",
-    situation: "Vous devez annoncer un changement de planning qui entraîne des changements de poste pour plusieurs professionnels. La décision est nécessaire, mais elle risque de générer de la tension et un sentiment d’injustice.",
-    mission: "Construisez un prompt RCTF permettant à votre IA de rédiger un message clair qui explique la décision, limite les tensions et préserve la confiance de l’équipe."
+    situation: "Vous dirigez une unité de médecine de 28 lits. Aujourd’hui, l’équipe de jour travaille en horaires de 7h30 et une équipe de nuit dédiée, distincte, travaille en horaires de 10 heures. À partir du 1er septembre, cette organisation doit être remplacée par un roulement unique en 12 heures, où chaque soignant alternera des postes de jour et de nuit au lieu d’appartenir à une équipe fixe. La décision est actée par la direction. Sur les 14 soignants de l’unité, les 5 qui composent aujourd’hui l’équipe de nuit sont particulièrement opposés au changement : ils souhaitent conserver leurs postes fixes en 10 heures et ne veulent pas basculer sur un roulement jour-nuit en 12 heures. Deux membres de l’équipe de jour expriment aussi des réserves, par crainte de la fatigue liée aux postes de 12 heures.",
+    mission: "Construisez un prompt RCTF permettant à votre IA de rédiger le message d’annonce à toute l’équipe. Il doit expliquer la raison du changement sans minimiser son impact, aborder directement la question de l’équipe de nuit et de son attachement au 10 heures, et ouvrir la voie à un dialogue sur l’adaptation de l’organisation à ces résistances, sans remettre en cause le principe du passage en 12 heures lui-même."
   },
   {
     title: "Le briefing d’équipe",
-    situation: "Des tensions apparaissent dans l’équipe autour de la charge de travail et de la répartition des tâches. Plusieurs professionnels disent ne pas se sentir entendus.",
-    mission: "Demandez à l’IA de préparer votre prochain briefing : objectifs, déroulé, questions à poser, points de vigilance et manière de faire émerger des solutions avec l’équipe."
+    situation: "Vous encadrez une équipe de 12 aides-soignants et 3 infirmiers en EHPAD. Depuis le départ non remplacé de deux aides-soignantes en juin, la charge de travail s’est reportée sur le reste de l’équipe. Cinq professionnels vous ont alerté informellement ces deux dernières semaines : ils jugent la répartition des tâches entre les deux ailes du bâtiment inéquitable, et deux d’entre eux évoquent une demande de mutation. Lors de la dernière réunion, plusieurs personnes sont restées silencieuses alors qu’elles semblaient concernées. Le prochain briefing d’équipe a lieu dans une semaine.",
+    mission: "Demandez à l’IA de préparer ce briefing : objectifs de la réunion, déroulé minuté, questions ouvertes qui donneront la parole aux plus silencieux sans braquer les plus vocaux, points de vigilance si le ton monte, et une méthode pour faire émerger collectivement des pistes de réorganisation plutôt que de trancher seul en amont. Si vous êtes à l’aise avec l’oral, c’est l’occasion de tester le mode vocal de votre IA pour formuler votre prompt à voix haute plutôt qu’à l’écrit : une autre manière de préciser Rôle, Contexte, Tâche et Format."
   }
 ];
 
