@@ -189,6 +189,7 @@ function renderTrainerSession() {
   document.getElementById('trainerSessionHelp').textContent = 'Projetez le QR code : les participants ouvrent directement la bonne session, puis choisissent leur équipe.';
   document.getElementById('trainerSessionCode').textContent = state.trainerSession.session_code;
   document.getElementById('sessionCodeCard').classList.remove('hidden');
+  document.getElementById('createSessionButton').classList.add('hidden');
   renderSessionQrCode();
   renderTrainerControls();
 }
@@ -1264,8 +1265,12 @@ async function handleSessionLink() {
   input.value = code;
   await joinSessionByCode();
 }
+
 async function restoreTrainerSession() {
-  if (!state.userId) return;
+  if (!state.userId) {
+    resetTrainerSessionPanel();
+    return;
+  }
   try {
     const { data, error } = await db
       .from('sessions')
@@ -1276,7 +1281,10 @@ async function restoreTrainerSession() {
       .limit(1)
       .maybeSingle();
     if (error) throw error;
-    if (!data) return;
+    if (!data) {
+      resetTrainerSessionPanel();
+      return;
+    }
     state.trainerSession = data;
     state.reviewRound = displayRoundNumber(data);
     state.selectedSubmissionId = null;
@@ -1286,8 +1294,20 @@ async function restoreTrainerSession() {
     startTrainerSyncLoop();
   } catch (error) {
     console.debug('Reprise de session formateur impossible', error);
+    resetTrainerSessionPanel();
   }
 }
+
+function resetTrainerSessionPanel() {
+  document.getElementById('trainerSessionTitle').textContent = 'Aucune session active';
+  document.getElementById('trainerSessionHelp').textContent = 'Créez une session pour générer un code à six caractères.';
+  const createButton = document.getElementById('createSessionButton');
+  if (createButton) {
+    createButton.disabled = false;
+    createButton.classList.remove('hidden');
+  }
+}
+
 async function init() {
   buildTrainerTeams();
   startTimerLoop();
@@ -1298,6 +1318,7 @@ async function init() {
   } catch (error) {
     console.error(error);
     setConnectionStatus('Connexion impossible', 'error');
+    resetTrainerSessionPanel();
   }
 }
 
