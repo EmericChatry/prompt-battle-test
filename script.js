@@ -1303,13 +1303,37 @@ async function handleSessionLink() {
   input.value = code;
   await joinSessionByCode();
 }
-
+async function restoreTrainerSession() {
+  if (!state.userId) return;
+  try {
+    const { data, error } = await db
+      .from('sessions')
+      .select('*')
+      .eq('created_by', state.userId)
+      .neq('status', 'finished')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return;
+    state.trainerSession = data;
+    state.reviewRound = displayRoundNumber(data);
+    state.selectedSubmissionId = null;
+    renderTrainerSession();
+    await refreshTrainerData();
+    subscribeTrainer(data.id);
+    startTrainerSyncLoop();
+  } catch (error) {
+    console.debug('Reprise de session formateur impossible', error);
+  }
+}
 async function init() {
   buildTrainerTeams();
   buildScores();
   startTimerLoop();
   try {
     await ensureAnonymousAuth();
+    await restoreTrainerSession();
     await handleSessionLink();
   } catch (error) {
     console.error(error);
