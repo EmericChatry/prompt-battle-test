@@ -610,74 +610,12 @@ async function submitCurrentRound() {
     if (result.error) throw result.error;
     state.currentSubmissionId = result.data.id;
     document.getElementById('saveState').textContent = submissionStatusText(result.data);
-    buildScores(result.data.self_score);
-    showScreen('selfcheck');
   } catch (error) {
     console.error(error);
     alert(`Impossible d’enregistrer la réponse : ${error.message}`);
   } finally {
     button.disabled = false;
     renderParticipantRoundState();
-  }
-}
-
-const scoreItems = [
-  ["Pertinence", "Le résultat répond-il réellement au problème posé ?"],
-  ["Précision", "La demande limite-t-elle les réponses vagues ou génériques ?"],
-  ["Contexte", "Les informations données permettent-elles une réponse adaptée ?"],
-  ["Utilité managériale", "Pourriez-vous réellement vous appuyer sur ce résultat ?"]
-];
-
-function buildScores(existingTotal = null) {
-  const grid = document.getElementById('scoreGrid');
-  const defaults = existingTotal ? distributeScore(existingTotal) : [3,3,3,3];
-  grid.innerHTML = scoreItems.map((item, index) => `
-    <article class="score-card">
-      <h3>${item[0]}</h3><p>${item[1]}</p>
-      <select class="score-select" aria-label="${item[0]}">
-        ${[1,2,3,4,5].map(n => `<option value="${n}" ${n === defaults[index] ? 'selected' : ''}>${n} / 5</option>`).join('')}
-      </select>
-    </article>`).join('');
-  document.querySelectorAll('.score-select').forEach(s => s.addEventListener('change', updateTotal));
-  updateTotal();
-}
-
-function distributeScore(total) {
-  const target = Math.min(20, Math.max(4, Number(total)));
-  const arr = [1,1,1,1];
-  let remaining = target - 4;
-  let i = 0;
-  while (remaining > 0) {
-    if (arr[i] < 5) { arr[i]++; remaining--; }
-    i = (i + 1) % 4;
-  }
-  return arr;
-}
-
-function updateTotal() {
-  const total = [...document.querySelectorAll('.score-select')].reduce((sum, el) => sum + Number(el.value), 0);
-  document.getElementById('selfTotal').textContent = total;
-}
-
-async function saveSelfScore() {
-  if (!state.currentSubmissionId) return;
-  const total = [...document.querySelectorAll('.score-select')].reduce((sum, el) => sum + Number(el.value), 0);
-  const button = document.getElementById('nextRound');
-  button.disabled = true;
-  button.textContent = 'Enregistrement…';
-  try {
-    const { error } = await db.from('submissions').update({ self_score: total }).eq('id', state.currentSubmissionId);
-    if (error) throw error;
-    document.getElementById('selfcheckWaiting').classList.remove('hidden');
-    button.textContent = 'Autoévaluation enregistrée ✓';
-    document.getElementById('saveState').textContent = `✓ Soumis · autoévaluation ${total}/20`;
-    await refreshParticipantSession();
-    if (state.participantSession?.status !== 'finished' && !state.participantSession?.ranking_published) showScreen('battle');
-  } catch (error) {
-    console.error(error);
-    alert(`Impossible d’enregistrer l’autoévaluation : ${error.message}`);
-    button.disabled = false;
-    button.textContent = 'Valider mon autoévaluation';
   }
 }
 
@@ -756,7 +694,7 @@ function renderReviewList() {
     const evaluation = state.evaluations.find(e => e.submission_id === sub.id);
     const delay = Number(sub.delay_seconds || 0);
     return `<button class="review-list-item ${state.selectedSubmissionId === sub.id ? 'active' : ''}" type="button" data-review-id="${sub.id}">
-      <span><span class="review-team-name"><i class="team-dot" style="background:${teamColors[(team?.team_slot || 1) - 1]}"></i>${team?.team_name || 'Équipe'}</span><small>${delay > 0 ? `Hors délai +${formatTime(delay)}` : 'Dans le temps'} · autoéval. ${sub.self_score ?? '—'}/20</small></span>
+      <span><span class="review-team-name"><i class="team-dot" style="background:${teamColors[(team?.team_slot || 1) - 1]}"></i>${team?.team_name || 'Équipe'}</span><small>${delay > 0 ? `Hors délai +${formatTime(delay)}` : 'Dans le temps'}</small></span>
       <span class="review-score-chip">${evaluation ? `${evaluation.total}/20` : 'À noter'}</span>
     </button>`;
   }).join('');
@@ -796,7 +734,7 @@ function renderReviewDetail(submissionId) {
   ];
   const delay = Number(sub.delay_seconds || 0);
   detail.innerHTML = `<div class="review-production">
-    <div class="review-meta"><div><p class="panel-label">MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title.toUpperCase()}</p><h3>${team?.team_name || 'Équipe'}</h3></div><span class="review-self">Autoévaluation : ${sub.self_score ?? '—'}/20 · ${delay > 0 ? `+${formatTime(delay)}` : 'dans le temps'}</span></div>
+    <div class="review-meta"><div><p class="panel-label">MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title.toUpperCase()}</p><h3>${team?.team_name || 'Équipe'}</h3></div><span class="review-self">${delay > 0 ? `+${formatTime(delay)}` : 'dans le temps'}</span></div>
     <div class="production-block"><p class="panel-label">PROMPT</p><p>${escapeHtml(sub.prompt_text || '—')}</p></div>
     <div class="production-block"><p class="panel-label">RÉSULTAT IA</p><p>${escapeHtml(sub.ai_response_text || 'Aucun résultat IA déposé.')}</p></div>
     <div class="evaluation-grid">
@@ -1247,7 +1185,6 @@ document.getElementById('rctfToggle').addEventListener('click', () => {
 });
 
 document.getElementById('submitRound').addEventListener('click', submitCurrentRound);
-document.getElementById('nextRound').addEventListener('click', saveSelfScore);
 document.getElementById('startRoundButton').addEventListener('click', startOrResumeRound);
 document.getElementById('pauseRoundButton').addEventListener('click', pauseRound);
 document.getElementById('nextTrainerRoundButton').addEventListener('click', prepareNextRound);
@@ -1329,7 +1266,6 @@ async function restoreTrainerSession() {
 }
 async function init() {
   buildTrainerTeams();
-  buildScores();
   startTimerLoop();
   try {
     await ensureAnonymousAuth();
