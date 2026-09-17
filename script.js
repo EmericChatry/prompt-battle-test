@@ -185,11 +185,17 @@ function renderSessionQrCode() {
 
 function renderTrainerSession() {
   if (!state.trainerSession) return;
-  document.getElementById('trainerSessionTitle').textContent = 'Session active';
-  document.getElementById('trainerSessionHelp').textContent = 'Projetez le QR code : les participants ouvrent directement la bonne session, puis choisissent leur équipe.';
+  const finished = state.trainerSession.status === 'finished';
+  document.getElementById('trainerSessionTitle').textContent = finished ? 'Battle terminée' : 'Session active';
+  document.getElementById('trainerSessionHelp').textContent = finished
+    ? 'Cette session est terminée. Vous pouvez encore consulter ses résultats ci-dessous, ou créer une nouvelle session pour un prochain groupe.'
+    : 'Projetez le QR code : les participants ouvrent directement la bonne session, puis choisissent leur équipe.';
   document.getElementById('trainerSessionCode').textContent = state.trainerSession.session_code;
   document.getElementById('sessionCodeCard').classList.remove('hidden');
-  document.getElementById('createSessionButton').classList.add('hidden');
+  const createButton = document.getElementById('createSessionButton');
+  createButton.classList.toggle('hidden', !finished);
+  createButton.disabled = false;
+  if (finished) createButton.textContent = 'Créer une nouvelle session';
   renderSessionQrCode();
   renderTrainerControls();
 }
