@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://cmaikgqdyjqyrtkcwhkz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_aGRxie9hlojGMP1Sttz9hg_dn4XbLc-';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-const ROUND_SECONDS = 330;
+const ROUND_SECONDS = 720;
 const challenges = [
   {
     title: "Le mail impossible",
@@ -13,11 +13,6 @@ const challenges = [
     title: "Le briefing d’équipe",
     situation: "Des tensions apparaissent dans l’équipe autour de la charge de travail et de la répartition des tâches. Plusieurs professionnels disent ne pas se sentir entendus.",
     mission: "Demandez à l’IA de préparer votre prochain briefing : objectifs, déroulé, questions à poser, points de vigilance et manière de faire émerger des solutions avec l’équipe."
-  },
-  {
-    title: "Le boss final",
-    situation: "Vous devez préparer un entretien avec un professionnel compétent et apprécié, mais dont les retards répétés ont désormais un impact sur l’organisation du service.",
-    mission: "Obtenez une préparation d’entretien comprenant les objectifs, une formulation pour aborder le problème, des questions ouvertes, les réactions défensives possibles, vos réponses de manager et les pièges à éviter."
   }
 ];
 
@@ -83,7 +78,7 @@ function makeSessionCode() {
 }
 
 function displayRoundNumber(session) {
-  return Math.min(3, Math.max(1, session?.current_round || 1));
+  return Math.min(2, Math.max(1, session?.current_round || 1));
 }
 
 function formatTime(totalSeconds) {
@@ -464,7 +459,7 @@ async function loadParticipantRound(force = false) {
   const roundNumber = displayRoundNumber(state.participantSession);
   const index = roundNumber - 1;
   const c = challenges[index];
-  document.getElementById('roundLabel').textContent = `MANCHE ${roundNumber} / 3`;
+  document.getElementById('roundLabel').textContent = `MANCHE ${roundNumber} / 2`;
   document.getElementById('challengeTitle').textContent = c.title;
   document.getElementById('challengeSituation').textContent = c.situation;
   document.getElementById('challengeMission').textContent = c.mission;
@@ -806,7 +801,7 @@ function renderLeaderboard() {
     board.innerHTML = '<p class="muted">Le classement apparaîtra dès qu’une première production sera notée.</p>';
     return;
   }
-  board.innerHTML = ranking.map((item, index) => `<div class="leader-row"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/3 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${item.total}/${item.rounds * 20}</span></div>`).join('');
+  board.innerHTML = ranking.map((item, index) => `<div class="leader-row"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${item.total}/${item.rounds * 20}</span></div>`).join('');
 }
 
 function renderRankingPublicationState() {
@@ -835,9 +830,9 @@ async function toggleRankingPublication() {
       alert('Aucune production n’est encore notée. Notez au moins une équipe avant de publier le classement.');
       return;
     }
-    const incomplete = ranking.filter(item => item.rounds < 3).length;
+    const incomplete = ranking.filter(item => item.rounds < 2).length;
     const message = state.trainerSession.status === 'finished'
-      ? (incomplete ? `${incomplete} équipe(s) n’ont pas encore 3 manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
+      ? (incomplete ? `${incomplete} équipe(s) n’ont pas encore 2 manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
       : 'La battle n’est pas encore terminée. Publier un classement provisoire aux participants ?';
     if (!window.confirm(message)) return;
   }
@@ -875,7 +870,7 @@ function renderTrainerControls() {
   }
 
   const roundNumber = displayRoundNumber(session);
-  document.getElementById('trainerRound').textContent = `${roundNumber}/3`;
+  document.getElementById('trainerRound').textContent = `${roundNumber}/2`;
   document.getElementById('trainerRoundName').textContent = challenges[roundNumber - 1].title;
   document.getElementById('trainerControlTitle').textContent = `Manche ${roundNumber} — ${challenges[roundNumber - 1].title}`;
 
@@ -902,9 +897,9 @@ function renderTrainerControls() {
   // Le formateur doit toujours pouvoir écourter une manche en cours.
   // Le bouton reste donc actif pendant waiting / running / paused.
   nextButton.disabled = session.status === 'finished' || state.trainerTransitionBusy;
-  if (roundNumber >= 3) {
+  if (roundNumber >= 2) {
     nextButton.textContent = session.status === 'running' || session.status === 'paused'
-      ? '⏹ Clôturer la manche 3 et terminer la battle'
+      ? `⏹ Clôturer la manche ${roundNumber} et terminer la battle`
       : 'Terminer la battle';
   } else {
     nextButton.textContent = session.status === 'running' || session.status === 'paused'
@@ -998,13 +993,13 @@ async function prepareNextRound() {
     const current = displayRoundNumber(freshSession);
     const isActive = freshSession.status === 'running' || freshSession.status === 'paused';
 
-    const message = current >= 3
+    const message = current >= 2
       ? (isActive
-          ? 'Clôturer la manche 3 maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.'
+          ? `Clôturer la manche ${current} maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.`
           : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.')
       : (isActive
           ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
-          : `Préparer la manche ${current + 1} ? Le chrono sera remis à 05:30 et les participants basculeront sur le prochain briefing.`);
+          : `Préparer la manche ${current + 1} ? Le chrono sera remis à 12:00 et les participants basculeront sur le prochain briefing.`);
 
     // On libère temporairement l’état busy pendant la boîte de dialogue : certains navigateurs
     // recalculent mal l’état d’un bouton désactivé après un confirm() bloquant.
@@ -1016,10 +1011,10 @@ async function prepareNextRound() {
     if (button) {
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
-      button.textContent = current >= 3 ? 'Clôture de la battle…' : `Préparation de la manche ${current + 1}…`;
+      button.textContent = current >= 2 ? 'Clôture de la battle…' : `Préparation de la manche ${current + 1}…`;
     }
 
-    const patch = current >= 3
+    const patch = current >= 2
       ? { status: 'finished', round_started_at: null, round_duration_seconds: 0 }
       : { current_round: current + 1, status: 'waiting', round_started_at: null, round_duration_seconds: ROUND_SECONDS };
 
@@ -1036,10 +1031,10 @@ async function prepareNextRound() {
 
     // Vérification explicite : si le navigateur a raté l’événement Realtime, on relit la session.
     const verified = await refreshTrainerSessionState({ render: false });
-    if (current < 3 && Number(verified.current_round) !== current + 1) {
+    if (current < 2 && Number(verified.current_round) !== current + 1) {
       throw new Error('Le changement de manche n’a pas été confirmé par la base. Réessayez.');
     }
-    if (current >= 3 && verified.status !== 'finished') {
+    if (current >= 2 && verified.status !== 'finished') {
       throw new Error('La fin de battle n’a pas été confirmée par la base. Réessayez.');
     }
   } catch (error) {
@@ -1077,11 +1072,11 @@ async function openPublicRanking(silent = false) {
     const board = document.getElementById('publicLeaderboard');
     const podium = document.getElementById('publicPodium');
     const ownNote = document.getElementById('ownTeamRankingNote');
-    const scoreLabel = item => `${item.total}/${item.rounds === 3 ? 60 : item.rounds * 20}`;
+    const scoreLabel = item => `${item.total}/${item.rounds * 20}`;
     const medals = ['🥇', '🥈', '🥉'];
 
-    podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/3 manches notées</small></article>`).join('');
-    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/3 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d’être publié. Chargement des notes…</p>';
+    podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/2 manches notées</small></article>`).join('');
+    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d’être publié. Chargement des notes…</p>';
 
     const ownIndex = ranking.findIndex(item => item.team.id === state.teamId);
     if (ownNote) {
