@@ -729,3 +729,31 @@ footer {
   .session-share-grid { grid-template-columns: 1fr; }
   .qr-share-block { flex-direction: column; text-align: center; }
 }
+
+/* V2.11 — liens vers les IA, copie du prompt, compteur de prompts */
+.ai-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+.ai-links-row .tiny,
+.ai-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.number-input {
+  width: 140px;
+  border: 1px solid #cbd8df;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--ink);
+  background: #fbfdfe;
+  margin-bottom: 18px;
+}
+.number-input:focus {
+  outline: 3px solid rgba(243,111,50,.14);
+  border-color: var(--orange);
+}
