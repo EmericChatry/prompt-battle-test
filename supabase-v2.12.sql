@@ -30,5 +30,6 @@ alter table public.sessions
 -- $$;
 -- grant execute on function public.get_session_for_join(text) to anon, authenticated, service_role;
 
--- Nettoyage possible plus tard (l'ancienne version n'est plus utilisée) :
+-- Nettoyage fait le 2026-10-10 (par le formateur, depuis le SQL Editor de Supabase) :
 -- drop function public.get_session_for_join_v211(text);
+-- Il ne reste que public.get_session_for_join.
