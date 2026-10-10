@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "packs": [
+    {
+      "id": "managers",
+      "title": "Managers en santé",
+      "description": "Deux défis de management en équipe de soins : annoncer un changement difficile, puis préparer un briefing sous tension.",
+      "file": "scenarios/managers.json"
+    },
+    {
+      "id": "formateur",
+      "title": "Formateurs en santé",
+      "description": "Former, évaluer, accompagner avec l'IA : concevoir un cours en urgence, puis remettre à jour une évaluation écrite.",
+      "file": "scenarios/formateur.json"
+    }
+  ]
+}

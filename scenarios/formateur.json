@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "id": "formateur",
+  "title": "Formateurs en santé",
+  "description": "Former, évaluer, accompagner avec l'IA : concevoir un cours en urgence, puis remettre à jour une évaluation écrite.",
+  "scenarios": [
+    {
+      "id": "formateur-1",
+      "title": "Le cours à sauver",
+      "situation": "Vous êtes formateur dans un institut de formation en soins infirmiers. L'intervenant prévu demain a annulé hier : il ne reste que 24 heures. Vous devez assurer à sa place un cours magistral de 2 heures, en amphithéâtre, pour des étudiants de première année. C'est leur premier cours de santé publique et ils n'ont presque aucun apport préalable sur le sujet. Le contenu porte sur les concepts de base de la santé publique, notamment la prévention primaire, secondaire et tertiaire. Vous n'avez aucun diaporama prêt et vous disposez de la soirée pour préparer.",
+      "mission": "Construisez un prompt RCTF permettant à votre IA de concevoir cette séquence de 2 heures : un déroulé minuté, des objectifs pédagogiques, des activités qui cassent le format cours magistral, les supports à prévoir et quelques questions pour vérifier que les étudiants ont compris. L'IA propose, c'est à vous de juger ce qui est réaliste pour un premier contact avec le sujet.",
+      "durationSeconds": 720,
+      "method": [
+        "Rôle",
+        "Contexte",
+        "Tâche",
+        "Format"
+      ],
+      "grading": {
+        "scaleMax": 20,
+        "criteria": [
+          {
+            "key": "pertinence",
+            "label": "Pertinence",
+            "question": "Le résultat répond-il réellement au problème posé ?",
+            "max": 5
+          },
+          {
+            "key": "precision",
+            "label": "Précision",
+            "question": "Le résultat est-il suffisamment ciblé, concret et peu générique ?",
+            "max": 5
+          },
+          {
+            "key": "context_score",
+            "label": "Contexte",
+            "question": "Le résultat exploite-t-il correctement les éléments de contexte fournis ?",
+            "max": 5
+          },
+          {
+            "key": "utility",
+            "label": "Utilité pédagogique",
+            "question": "Le formateur pourrait-il réellement utiliser ou adapter cette production ?",
+            "max": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "formateur-2",
+      "title": "L'évaluation à remettre à jour",
+      "situation": "Votre équipe reprend un devoir écrit à domicile hérité de l'ancien référentiel de formation (ancienne UE 4.6, semestre 3) : la critique d'un article, avec les étapes de la démarche projet. Le sujet date et il laisse peu de place à la réflexion : aujourd'hui, un étudiant peut le faire corriger ou rédiger par une IA en quelques minutes. Le sujet ci-dessous est entièrement fictif et contient volontairement des défauts. Vous cherchez à le rendre plus pertinent aujourd'hui, sans interdire l'IA aux étudiants.",
+      "mission": "Construisez un prompt RCTF qui impose à l'IA des critères de qualité : cohérence de la consigne, critères d'évaluation clairs, exigence qui oblige l'étudiant à réfléchir par lui-même. Faites d'abord critiquer le sujet par l'IA, puis demandez une version améliorée. Dans le champ résultat, collez la version améliorée. Ajoutez à la fin une ligne qui commence par « Défaut oublié ou mal corrigé par l'IA : » et nommez-en un.",
+      "durationSeconds": 720,
+      "method": [
+        "Rôle",
+        "Contexte",
+        "Tâche",
+        "Format"
+      ],
+      "grading": {
+        "scaleMax": 20,
+        "criteria": [
+          {
+            "key": "pertinence",
+            "label": "Pertinence",
+            "question": "Le résultat répond-il réellement au problème posé ?",
+            "max": 5
+          },
+          {
+            "key": "precision",
+            "label": "Précision",
+            "question": "Le résultat est-il suffisamment ciblé, concret et peu générique ?",
+            "max": 5
+          },
+          {
+            "key": "context_score",
+            "label": "Contexte",
+            "question": "Le résultat exploite-t-il correctement les éléments de contexte fournis ?",
+            "max": 5
+          },
+          {
+            "key": "utility",
+            "label": "Utilité pédagogique",
+            "question": "Le formateur pourrait-il réellement utiliser ou adapter cette production ?",
+            "max": 5
+          }
+        ]
+      },
+      "material": {
+        "title": "Sujet du devoir (fictif)",
+        "text": "Devoir écrit à domicile, semestre 3.\nÀ rendre sous huit jours, dactylographié, 3 pages maximum (ou 8 pages si votre formateur l'autorise).\n\nArticle fourni en annexe : « La prévention du risque de chute en service de soins de suite », article fictif daté de 2008.\n\nConsigne : faites une critique de ce texte. Vous présenterez les étapes de la démarche projet. Vous donnerez votre avis personnel. Vous citerez vos sources.\n\nCritères d'évaluation : qualité de la rédaction (5 points), respect de la consigne (10 points), présentation (3 points), pertinence (4 points).\n\nRemarque : la critique doit être objective, mais elle doit aussi exprimer votre ressenti."
+      }
+    }
+  ]
+}
