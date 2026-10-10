@@ -7,13 +7,13 @@ const RESTORE_WINDOW_HOURS = 10;
 const challenges = [
   {
     title: "Le mail impossible",
-    situation: "Vous dirigez une unité de médecine de 28 lits. Aujourd’hui, l’équipe de jour travaille en horaires de 7h30 et une équipe de nuit dédiée, distincte, travaille en horaires de 10 heures. À partir du 1er septembre, cette organisation doit être remplacée par un roulement unique en 12 heures, où chaque soignant alternera des postes de jour et de nuit au lieu d’appartenir à une équipe fixe. La décision est actée par la direction. Sur les 14 soignants de l’unité, les 5 qui composent aujourd’hui l’équipe de nuit sont particulièrement opposés au changement : ils souhaitent conserver leurs postes fixes en 10 heures et ne veulent pas basculer sur un roulement jour-nuit en 12 heures. Deux membres de l’équipe de jour expriment aussi des réserves, par crainte de la fatigue liée aux postes de 12 heures.",
-    mission: "Construisez un prompt RCTF permettant à votre IA de rédiger le message d’annonce à toute l’équipe. Il doit expliquer la raison du changement sans minimiser son impact, aborder directement la question de l’équipe de nuit et de son attachement au 10 heures, et ouvrir la voie à un dialogue sur l’adaptation de l’organisation à ces résistances, sans remettre en cause le principe du passage en 12 heures lui-même."
+    situation: "Vous dirigez une unité de médecine de 28 lits. Aujourd\'hui, l\'équipe de jour travaille en horaires de 7h30 et une équipe de nuit dédiée, distincte, travaille en horaires de 10 heures. À partir du 1er septembre, cette organisation doit être remplacée par un roulement unique en 12 heures, où chaque soignant alternera des postes de jour et de nuit au lieu d\'appartenir à une équipe fixe. La décision est actée par la direction. Sur les 14 soignants de l\'unité, les 5 qui composent aujourd\'hui l\'équipe de nuit sont particulièrement opposés au changement : ils souhaitent conserver leurs postes fixes en 10 heures et ne veulent pas basculer sur un roulement jour-nuit en 12 heures. Deux membres de l\'équipe de jour expriment aussi des réserves, par crainte de la fatigue liée aux postes de 12 heures.",
+    mission: "Construisez un prompt RCTF permettant à votre IA de rédiger le message d\'annonce à toute l\'équipe. Il doit expliquer la raison du changement sans minimiser son impact, aborder directement la question de l\'équipe de nuit et de son attachement au 10 heures, et ouvrir la voie à un dialogue sur l\'adaptation de l\'organisation à ces résistances, sans remettre en cause le principe du passage en 12 heures lui-même."
   },
   {
-    title: "Le briefing d’équipe",
-    situation: "Vous encadrez une équipe de 12 aides-soignants et 3 infirmiers en EHPAD. Depuis le départ non remplacé de deux aides-soignantes en juin, la charge de travail s’est reportée sur le reste de l’équipe. Cinq professionnels vous ont alerté informellement ces deux dernières semaines : ils jugent la répartition des tâches entre les deux ailes du bâtiment inéquitable, et deux d’entre eux évoquent une demande de mutation. Lors de la dernière réunion, plusieurs personnes sont restées silencieuses alors qu’elles semblaient concernées. Le prochain briefing d’équipe a lieu dans une semaine.",
-    mission: "Demandez à l’IA de préparer ce briefing : objectifs de la réunion, déroulé minuté, questions ouvertes qui donneront la parole aux plus silencieux sans braquer les plus vocaux, points de vigilance si le ton monte, et une méthode pour faire émerger collectivement des pistes de réorganisation plutôt que de trancher seul en amont. Si vous êtes à l’aise avec l’oral, c’est l’occasion de tester le mode vocal de votre IA pour formuler votre prompt à voix haute plutôt qu’à l’écrit : une autre manière de préciser Rôle, Contexte, Tâche et Format."
+    title: "Le briefing d\'équipe",
+    situation: "Vous encadrez une équipe de 12 aides-soignants et 3 infirmiers en EHPAD. Depuis le départ non remplacé de deux aides-soignantes en juin, la charge de travail s\'est reportée sur le reste de l\'équipe. Cinq professionnels vous ont alerté informellement ces deux dernières semaines : ils jugent la répartition des tâches entre les deux ailes du bâtiment inéquitable, et deux d\'entre eux évoquent une demande de mutation. Lors de la dernière réunion, plusieurs personnes sont restées silencieuses alors qu\'elles semblaient concernées. Le prochain briefing d\'équipe a lieu dans une semaine.",
+    mission: "Demandez à l\'IA de préparer ce briefing : objectifs de la réunion, déroulé minuté, questions ouvertes qui donneront la parole aux plus silencieux sans braquer les plus vocaux, points de vigilance si le ton monte, et une méthode pour faire émerger collectivement des pistes de réorganisation plutôt que de trancher seul en amont. Si vous êtes à l\'aise avec l\'oral, c\'est l\'occasion de tester le mode vocal de votre IA pour formuler votre prompt à voix haute plutôt qu\'à l\'écrit : une autre manière de préciser Rôle, Contexte, Tâche et Format."
   }
 ];
 
@@ -367,7 +367,7 @@ async function reserveTeam(slot, existing) {
   }
   const alreadyMine = state.teams.find(t => t.owner_user_id === state.userId);
   if (alreadyMine) {
-    alert(`Vous avez déjà rejoint l’Équipe ${alreadyMine.team_slot}.`);
+    alert(`Vous avez déjà rejoint l\'Équipe ${alreadyMine.team_slot}.`);
     return;
   }
   try {
@@ -380,7 +380,7 @@ async function reserveTeam(slot, existing) {
     }).select().single();
     if (error) {
       if (error.code === '23505') {
-        alert('Cette équipe vient d’être prise par un autre participant. Choisissez-en une autre.');
+        alert('Cette équipe vient d\'être prise par un autre participant. Choisissez-en une autre.');
         await loadParticipantTeams();
         return;
       }
@@ -392,7 +392,7 @@ async function reserveTeam(slot, existing) {
     await openBattle();
   } catch (error) {
     console.error(error);
-    alert(`Impossible de rejoindre l’équipe : ${error.message}`);
+    alert(`Impossible de rejoindre l\'équipe : ${error.message}`);
   }
 }
 
@@ -591,7 +591,7 @@ async function submitCurrentRound() {
     return;
   }
   if (!['running', 'paused'].includes(state.participantSession.status)) {
-    alert('La manche n’est pas encore ouverte par le formateur.');
+    alert('La manche n\'est pas encore ouverte par le formateur.');
     return;
   }
 
@@ -624,7 +624,7 @@ async function submitCurrentRound() {
     document.getElementById('saveState').textContent = submissionStatusText(result.data);
   } catch (error) {
     console.error(error);
-    alert(`Impossible d’enregistrer la réponse : ${error.message}`);
+    alert(`Impossible d\'enregistrer la réponse : ${error.message}`);
   } finally {
     button.disabled = false;
     renderParticipantRoundState();
@@ -670,7 +670,7 @@ function buildTrainerTeams() {
   }));
 
   document.getElementById('connectedTeamsCount').textContent = teams.length;
-  document.getElementById('connectedTeamsLabel').textContent = state.trainerSession ? 'connectées à cette session' : 'en attente d’une session';
+  document.getElementById('connectedTeamsLabel').textContent = state.trainerSession ? 'connectées à cette session' : 'en attente d\'une session';
   const submittedCount = state.submissions.filter(s => s.round_number === roundNumber && s.submitted_at).length;
   document.getElementById('submittedTeamsCount').textContent = submittedCount;
 }
@@ -797,7 +797,7 @@ async function saveTrainerEvaluation(submissionId) {
     renderReviewDetail(sub.id);
   } catch (error) {
     console.error(error);
-    alert(`Impossible d’enregistrer la note : ${error.message}`);
+    alert(`Impossible d\'enregistrer la note : ${error.message}`);
     button.disabled = false;
     button.textContent = 'Enregistrer la note';
   }
@@ -817,7 +817,7 @@ function renderLeaderboard() {
   if (!board) return;
   const ranking = cumulativeRanking();
   if (!ranking.length) {
-    board.innerHTML = '<p class="muted">Le classement apparaîtra dès qu’une première production sera notée.</p>';
+    board.innerHTML = '<p class="muted">Le classement apparaîtra dès qu\'une première production sera notée.</p>';
     return;
   }
   board.innerHTML = ranking.map((item, index) => `<div class="leader-row"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${item.total}/${item.rounds * 20}</span></div>`).join('');
@@ -846,13 +846,13 @@ async function toggleRankingPublication() {
   if (willPublish) {
     const ranking = cumulativeRanking();
     if (!ranking.length) {
-      alert('Aucune production n’est encore notée. Notez au moins une équipe avant de publier le classement.');
+      alert('Aucune production n\'est encore notée. Notez au moins une équipe avant de publier le classement.');
       return;
     }
     const incomplete = ranking.filter(item => item.rounds < 2).length;
     const message = state.trainerSession.status === 'finished'
-      ? (incomplete ? `${incomplete} équipe(s) n’ont pas encore 2 manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
-      : 'La battle n’est pas encore terminée. Publier un classement provisoire aux participants ?';
+      ? (incomplete ? `${incomplete} équipe(s) n\'ont pas encore 2 manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
+      : 'La battle n\'est pas encore terminée. Publier un classement provisoire aux participants ?';
     if (!window.confirm(message)) return;
   }
   try {
@@ -1006,7 +1006,7 @@ async function prepareNextRound() {
   renderTrainerControls();
 
   try {
-    // Toujours repartir de l’état réellement stocké dans Supabase.
+    // Toujours repartir de l'état réellement stocké dans Supabase.
     const freshSession = await refreshTrainerSessionState({ render: false });
     if (!freshSession) throw new Error('Session introuvable.');
 
@@ -1018,11 +1018,11 @@ async function prepareNextRound() {
           ? `Clôturer la manche ${current} maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.`
           : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.')
       : (isActive
-          ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s’arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
+          ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s\'arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
           : `Préparer la manche ${current + 1} ? Le chrono sera remis à 12:00 et les participants basculeront sur le prochain briefing.`);
 
-    // On libère temporairement l’état busy pendant la boîte de dialogue : certains navigateurs
-    // recalculent mal l’état d’un bouton désactivé après un confirm() bloquant.
+    // On libère temporairement l'état busy pendant la boîte de dialogue : certains navigateurs
+    // recalculent mal l'état d'un bouton désactivé après un confirm() bloquant.
     state.trainerTransitionBusy = false;
     renderTrainerControls();
     if (!window.confirm(message)) return;
@@ -1049,13 +1049,13 @@ async function prepareNextRound() {
     state.trainerSession = updatedSession;
     await refreshTrainerData();
 
-    // Vérification explicite : si le navigateur a raté l’événement Realtime, on relit la session.
+    // Vérification explicite : si le navigateur a raté l'événement Realtime, on relit la session.
     const verified = await refreshTrainerSessionState({ render: false });
     if (current < 2 && Number(verified.current_round) !== current + 1) {
-      throw new Error('Le changement de manche n’a pas été confirmé par la base. Réessayez.');
+      throw new Error('Le changement de manche n\'a pas été confirmé par la base. Réessayez.');
     }
     if (current >= 2 && verified.status !== 'finished') {
-      throw new Error('La fin de battle n’a pas été confirmée par la base. Réessayez.');
+      throw new Error('La fin de battle n\'a pas été confirmée par la base. Réessayez.');
     }
   } catch (error) {
     console.error('Erreur changement de manche', error);
@@ -1074,7 +1074,7 @@ async function prepareNextRound() {
 
 async function openPublicRanking(silent = false) {
   if (!state.participantSession?.ranking_published) {
-    if (!silent) alert('Le classement n’est pas encore publié par le formateur.');
+    if (!silent) alert('Le classement n\'est pas encore publié par le formateur.');
     return;
   }
   if (state.rankingOpenInProgress) return;
@@ -1096,7 +1096,7 @@ async function openPublicRanking(silent = false) {
     const medals = ['🥇', '🥈', '🥉'];
 
     podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/2 manches notées</small></article>`).join('');
-    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d’être publié. Chargement des notes…</p>';
+    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d\'être publié. Chargement des notes…</p>';
 
     const ownIndex = ranking.findIndex(item => item.team.id === state.teamId);
     if (ownNote) {
@@ -1172,10 +1172,10 @@ function subscribeTrainer(sessionId) {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
   if (state.participantSession?.id && state.teamId) {
-    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation participant au retour sur l’onglet', error); }
+    try { await refreshParticipantSession(); } catch (error) { console.debug('Resynchronisation participant au retour sur l\'onglet', error); }
   }
   if (state.trainerSession?.id && !state.trainerTransitionBusy) {
-    try { await refreshTrainerSessionState(); } catch (error) { console.debug('Resynchronisation formateur au retour sur l’onglet', error); }
+    try { await refreshTrainerSessionState(); } catch (error) { console.debug('Resynchronisation formateur au retour sur l\'onglet', error); }
   }
 });
 window.addEventListener('focus', async () => {
@@ -1232,7 +1232,7 @@ document.getElementById('openPublicRanking').addEventListener('click', openPubli
 document.getElementById('openRankingToast').addEventListener('click', () => openPublicRanking());
 document.getElementById('finalRankingButton').addEventListener('click', () => openPublicRanking());
 document.getElementById('refreshFinalState').addEventListener('click', async () => {
-  try { await refreshParticipantSession(); } catch (error) { alert(`Impossible d’actualiser : ${error.message}`); }
+  try { await refreshParticipantSession(); } catch (error) { alert(`Impossible d\'actualiser : ${error.message}`); }
 });
 
 async function resetBattle() {
