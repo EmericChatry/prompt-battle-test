@@ -757,3 +757,51 @@ footer {
   outline: 3px solid rgba(243,111,50,.14);
   border-color: var(--orange);
 }
+
+/* V2.12 — paquets de scénarios : choix de la formation, document de support, erreur de chargement */
+.pack-picker { flex-basis: 100%; }
+.pack-picker .panel-label { margin-bottom: 8px; }
+.pack-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.pack-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 14px 16px;
+  min-height: 64px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.pack-option strong { color: var(--navy); font-size: 1.02rem; }
+.pack-option small { color: var(--muted); font-size: .84rem; line-height: 1.35; }
+.pack-option:hover { border-color: #b9c9d3; }
+.pack-option:focus-visible { outline: 3px solid rgba(243,111,50,.25); outline-offset: 2px; }
+.pack-option.selected {
+  border-color: var(--orange);
+  background: #fff6ef;
+  box-shadow: 0 0 0 3px rgba(243,111,50,.14);
+}
+.session-pack-line { margin: 6px 0 0; font-weight: 700; color: var(--navy); }
+.material-panel { background: var(--surface-soft); border-style: dashed; }
+.material-text { white-space: pre-wrap; line-height: 1.5; }
+.pack-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 12px 0;
+  padding: 14px 18px;
+  border: 1px solid #e3b4b4;
+  border-radius: 14px;
+  background: #fff0f0;
+  color: #7d2f2f;
+}
+.pack-error p { margin: 6px 0 0; white-space: pre-line; font-size: .92rem; }
