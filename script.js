@@ -2,20 +2,13 @@ const SUPABASE_URL = 'https://cmaikgqdyjqyrtkcwhkz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_aGRxie9hlojGMP1Sttz9hg_dn4XbLc-';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-const ROUND_SECONDS = 720;
+// Durée de repli si un paquet ne la fournit pas (les paquets valides la définissent pour chaque scénario).
+const DEFAULT_ROUND_SECONDS = 720;
 const RESTORE_WINDOW_HOURS = 10;
-const challenges = [
-  {
-    title: "Le mail impossible",
-    situation: "Vous dirigez une unité de médecine de 28 lits. Aujourd\'hui, l\'équipe de jour travaille en horaires de 7h30 et une équipe de nuit dédiée, distincte, travaille en horaires de 10 heures. À partir du 1er septembre, cette organisation doit être remplacée par un roulement unique en 12 heures, où chaque soignant alternera des postes de jour et de nuit au lieu d\'appartenir à une équipe fixe. La décision est actée par la direction. Sur les 14 soignants de l\'unité, les 5 qui composent aujourd\'hui l\'équipe de nuit sont particulièrement opposés au changement : ils souhaitent conserver leurs postes fixes en 10 heures et ne veulent pas basculer sur un roulement jour-nuit en 12 heures. Deux membres de l\'équipe de jour expriment aussi des réserves, par crainte de la fatigue liée aux postes de 12 heures.",
-    mission: "Construisez un prompt RCTF permettant à votre IA de rédiger le message d\'annonce à toute l\'équipe. Il doit expliquer la raison du changement sans minimiser son impact, aborder directement la question de l\'équipe de nuit et de son attachement au 10 heures, et ouvrir la voie à un dialogue sur l\'adaptation de l\'organisation à ces résistances, sans remettre en cause le principe du passage en 12 heures lui-même."
-  },
-  {
-    title: "Le briefing d\'équipe",
-    situation: "Vous encadrez une équipe de 12 aides-soignants et 3 infirmiers en EHPAD. Depuis le départ non remplacé de deux aides-soignantes en juin, la charge de travail s\'est reportée sur le reste de l\'équipe. Cinq professionnels vous ont alerté informellement ces deux dernières semaines : ils jugent la répartition des tâches entre les deux ailes du bâtiment inéquitable, et deux d\'entre eux évoquent une demande de mutation. Lors de la dernière réunion, plusieurs personnes sont restées silencieuses alors qu\'elles semblaient concernées. Le prochain briefing d\'équipe a lieu dans une semaine.",
-    mission: "Demandez à l\'IA de préparer ce briefing : objectifs de la réunion, déroulé minuté, questions ouvertes qui donneront la parole aux plus silencieux sans braquer les plus vocaux, points de vigilance si le ton monte, et une méthode pour faire émerger collectivement des pistes de réorganisation plutôt que de trancher seul en amont. Si vous êtes à l\'aise avec l\'oral, c\'est l\'occasion de tester le mode vocal de votre IA pour formuler votre prompt à voix haute plutôt qu\'à l\'écrit : une autre manière de préciser Rôle, Contexte, Tâche et Format."
-  }
-];
+// Le moteur joue toujours 2 manches ; le contenu de chaque manche vient du paquet de la session (voir packs.js).
+const ROUND_COUNT = PromptBattlePacks.PACK_ROUND_COUNT;
+// Formation utilisée si une session ne précise pas de paquet.
+const DEFAULT_PACK_ID = 'managers';
 
 const teamColors = ["#183f59", "#f36f32", "#f2c94c", "#a94c58", "#2f7d68", "#6c63a8", "#557785", "#d98f4e"];
 const state = {
@@ -38,8 +31,113 @@ const state = {
   trainerSyncInProgress: false,
   trainerTransitionBusy: false,
   rankingOpenInProgress: false,
-  lastParticipantRound: null
+  lastParticipantRound: null,
+  // Paquets de scénarios : un pour la session pilotée (formateur), un pour la session rejointe (participant).
+  trainerPack: null,
+  participantPack: null,
+  packIndex: [],
+  selectedPackId: null
 };
+
+// ---------- Paquets de scénarios ----------
+
+function scenarioOf(pack, roundNumber) {
+  return pack?.scenarios?.[roundNumber - 1] || null;
+}
+
+function scenarioTitleOf(pack, roundNumber) {
+  return scenarioOf(pack, roundNumber)?.title || `Manche ${roundNumber}`;
+}
+
+function roundSecondsOf(pack, roundNumber) {
+  return scenarioOf(pack, roundNumber)?.durationSeconds || DEFAULT_ROUND_SECONDS;
+}
+
+function packIdOfSession(session) {
+  return session?.pack_id || DEFAULT_PACK_ID;
+}
+
+function setBrandSubtitle(pack) {
+  const el = document.getElementById('brandSubtitle');
+  if (el) el.textContent = pack?.title || 'Formation en santé';
+}
+
+// Affiche une erreur de paquet lisible (au lieu d'une page vide).
+function showPackError(error) {
+  const box = document.getElementById('packError');
+  const text = document.getElementById('packErrorText');
+  console.error('Erreur de paquet de scénarios', error);
+  if (!box || !text) return;
+  text.textContent = error?.message || String(error);
+  box.classList.remove('hidden');
+}
+
+function clearPackError() {
+  document.getElementById('packError')?.classList.add('hidden');
+}
+
+document.getElementById('packErrorClose')?.addEventListener('click', clearPackError);
+
+// ---------- Choix de la formation à la création d'une session ----------
+
+function updateCreateButton() {
+  const button = document.getElementById('createSessionButton');
+  if (!button) return;
+  const hasChoice = Boolean(state.selectedPackId);
+  button.disabled = !hasChoice;
+  button.textContent = hasChoice
+    ? (state.trainerSession ? 'Créer une nouvelle session' : 'Créer une session')
+    : 'Choisissez d\'abord une formation';
+}
+
+function setPackPickerVisible(visible) {
+  document.getElementById('packPicker')?.classList.toggle('hidden', !visible);
+  if (visible) loadPackPicker();
+}
+
+function renderPackOptions() {
+  const container = document.getElementById('packOptions');
+  if (!container) return;
+  container.innerHTML = state.packIndex.map(pack => {
+    const selected = pack.id === state.selectedPackId;
+    return `<button type="button" class="pack-option${selected ? ' selected' : ''}" role="radio" aria-checked="${selected}" data-pack-id="${escapeHtml(pack.id)}"><strong>${escapeHtml(pack.title)}</strong><small>${escapeHtml(pack.description)}</small></button>`;
+  }).join('');
+  container.querySelectorAll('[data-pack-id]').forEach(btn => btn.addEventListener('click', () => selectPack(btn.dataset.packId)));
+}
+
+async function loadPackPicker() {
+  if (state.packIndex.length) {
+    renderPackOptions();
+    updateCreateButton();
+    return;
+  }
+  const container = document.getElementById('packOptions');
+  if (container) container.innerHTML = '<p class="muted">Chargement des formations…</p>';
+  try {
+    state.packIndex = await PromptBattlePacks.loadPackIndex();
+    renderPackOptions();
+  } catch (error) {
+    if (container) container.innerHTML = '<p class="muted">Les formations ne peuvent pas être chargées.</p>';
+    showPackError(error);
+  }
+  updateCreateButton();
+}
+
+// Le fichier du paquet est vérifié dès le choix : une erreur s'affiche tout de suite, avant toute création de session.
+async function selectPack(packId) {
+  state.selectedPackId = null;
+  renderPackOptions();
+  updateCreateButton();
+  clearPackError();
+  try {
+    await PromptBattlePacks.loadPack(packId);
+    state.selectedPackId = packId;
+  } catch (error) {
+    showPackError(error);
+  }
+  renderPackOptions();
+  updateCreateButton();
+}
 
 const screens = [...document.querySelectorAll('.screen')];
 function showScreen(id) {
@@ -79,7 +177,7 @@ function makeSessionCode() {
 }
 
 function displayRoundNumber(session) {
-  return Math.min(2, Math.max(1, session?.current_round || 1));
+  return Math.min(ROUND_COUNT, Math.max(1, session?.current_round || 1));
 }
 
 function formatTime(totalSeconds) {
@@ -90,8 +188,8 @@ function formatTime(totalSeconds) {
 }
 
 function timerInfo(session) {
-  if (!session) return { remaining: ROUND_SECONDS, delay: 0, expired: false };
-  const duration = Number(session.round_duration_seconds || ROUND_SECONDS);
+  if (!session) return { remaining: DEFAULT_ROUND_SECONDS, delay: 0, expired: false };
+  const duration = Number(session.round_duration_seconds || DEFAULT_ROUND_SECONDS);
   if (session.status === 'running' && session.round_started_at) {
     const elapsed = Math.max(0, Math.floor((Date.now() - new Date(session.round_started_at).getTime()) / 1000));
     const raw = duration - elapsed;
@@ -118,10 +216,16 @@ function updateAllTimers() {
 
 async function createTrainerSession() {
   const button = document.getElementById('createSessionButton');
+  if (!state.selectedPackId) {
+    alert('Choisissez d\'abord la formation de cette session.');
+    return;
+  }
   button.disabled = true;
   button.textContent = 'Création…';
   try {
     await ensureAnonymousAuth();
+    // Le paquet est chargé et vérifié avant de créer la session : un fichier cassé ne crée rien.
+    const pack = await PromptBattlePacks.loadPack(state.selectedPackId);
     let created = null;
     for (let attempt = 0; attempt < 5 && !created; attempt++) {
       const code = makeSessionCode();
@@ -132,7 +236,8 @@ async function createTrainerSession() {
           created_by: state.userId,
           current_round: 0,
           status: 'waiting',
-          round_duration_seconds: ROUND_SECONDS,
+          pack_id: pack.id,
+          round_duration_seconds: roundSecondsOf(pack, 1),
           round_started_at: null
         })
         .select()
@@ -141,6 +246,8 @@ async function createTrainerSession() {
       else if (error.code !== '23505') throw error;
     }
     if (!created) throw new Error('Impossible de générer un code de session unique.');
+    state.trainerPack = pack;
+    state.selectedPackId = null;
     state.trainerSession = created;
     state.reviewRound = 1;
     state.selectedSubmissionId = null;
@@ -150,11 +257,14 @@ async function createTrainerSession() {
     startTrainerSyncLoop();
     startTimerLoop();
   } catch (error) {
-    console.error(error);
-    alert(`Impossible de créer la session : ${error.message}`);
+    if (error instanceof PromptBattlePacks.PackError) {
+      showPackError(error);
+    } else {
+      console.error(error);
+      alert(`Impossible de créer la session : ${error.message}`);
+    }
   } finally {
-    button.disabled = false;
-    button.textContent = 'Créer une nouvelle session';
+    updateCreateButton();
   }
 }
 
@@ -193,10 +303,16 @@ function renderTrainerSession() {
     : 'Projetez le QR code : les participants ouvrent directement la bonne session, puis choisissent leur équipe.';
   document.getElementById('trainerSessionCode').textContent = state.trainerSession.session_code;
   document.getElementById('sessionCodeCard').classList.remove('hidden');
+  const packLine = document.getElementById('trainerSessionPack');
+  if (packLine) {
+    packLine.textContent = `Formation : ${state.trainerPack?.title || packIdOfSession(state.trainerSession)}`;
+    packLine.classList.remove('hidden');
+  }
+  setBrandSubtitle(state.trainerPack);
   const createButton = document.getElementById('createSessionButton');
   createButton.classList.toggle('hidden', !finished);
-  createButton.disabled = false;
-  if (finished) createButton.textContent = 'Créer une nouvelle session';
+  setPackPickerVisible(finished);
+  updateCreateButton();
   renderSessionQrCode();
   renderTrainerControls();
 }
@@ -223,6 +339,18 @@ async function joinSessionByCode() {
       document.getElementById('teamSelectionBlock').classList.add('hidden');
       return;
     }
+    // Le contenu de la formation est chargé avant d'afficher le choix d'équipe.
+    try {
+      state.participantPack = await PromptBattlePacks.loadPack(packIdOfSession(data));
+    } catch (packError) {
+      if (!(packError instanceof PromptBattlePacks.PackError)) throw packError;
+      showPackError(packError);
+      feedback.textContent = 'Le contenu de cette formation ne peut pas être chargé. Prévenez le formateur.';
+      feedback.classList.add('error');
+      document.getElementById('teamSelectionBlock').classList.add('hidden');
+      return;
+    }
+    setBrandSubtitle(state.participantPack);
     state.participantSession = data;
     state.lastParticipantRound = data.current_round;
     document.getElementById('participantSessionCode').textContent = data.session_code;
@@ -465,12 +593,21 @@ async function refreshParticipantSession() {
 async function loadParticipantRound(force = false) {
   if (!state.participantSession || !state.teamId) return;
   const roundNumber = displayRoundNumber(state.participantSession);
-  const index = roundNumber - 1;
-  const c = challenges[index];
-  document.getElementById('roundLabel').textContent = `MANCHE ${roundNumber} / 2`;
+  const c = scenarioOf(state.participantPack, roundNumber);
+  if (!c) {
+    showPackError(new PromptBattlePacks.PackError(`Le scénario de la manche ${roundNumber} est introuvable. Rechargez la page ou prévenez le formateur.`));
+    return;
+  }
+  document.getElementById('roundLabel').textContent = `MANCHE ${roundNumber} / ${ROUND_COUNT}`;
   document.getElementById('challengeTitle').textContent = c.title;
   document.getElementById('challengeSituation').textContent = c.situation;
   document.getElementById('challengeMission').textContent = c.mission;
+  const materialPanel = document.getElementById('challengeMaterialPanel');
+  if (materialPanel) {
+    materialPanel.classList.toggle('hidden', !c.material);
+    document.getElementById('challengeMaterialTitle').textContent = c.material?.title || '';
+    document.getElementById('challengeMaterialText').textContent = c.material?.text || '';
+  }
 
   const { data, error } = await db
     .from('submissions')
@@ -739,16 +876,11 @@ function renderReviewDetail(submissionId) {
   const team = state.teams.find(t => t.id === sub.team_id);
   const evaluation = state.evaluations.find(e => e.submission_id === sub.id);
   const values = evaluation ? [evaluation.pertinence, evaluation.precision, evaluation.context_score, evaluation.utility] : [3,3,3,3];
-  const criteria = [
-    ['Pertinence', 'Le résultat répond-il réellement au problème posé ?'],
-    ['Précision', 'Le résultat est-il suffisamment ciblé, concret et peu générique ?'],
-    ['Contexte', 'Le résultat exploite-t-il correctement les éléments de contexte fournis ?'],
-    ['Utilité managériale', 'Le manager pourrait-il réellement utiliser ou adapter cette production ?']
-  ];
+  const criteria = (scenarioOf(state.trainerPack, sub.round_number)?.grading.criteria || []).map(c => [c.label, c.question]);
   const delay = Number(sub.delay_seconds || 0);
   const promptCountLabel = sub.prompt_count ? ` · ${sub.prompt_count} prompt${sub.prompt_count > 1 ? 's' : ''}` : '';
   detail.innerHTML = `<div class="review-production">
-    <div class="review-meta"><div><p class="panel-label">MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title.toUpperCase()}</p><h3>${team?.team_name || 'Équipe'}</h3></div><span class="review-self">${delay > 0 ? `+${formatTime(delay)}` : 'dans le temps'}${promptCountLabel}</span></div>
+    <div class="review-meta"><div><p class="panel-label">MANCHE ${sub.round_number} · ${escapeHtml(scenarioTitleOf(state.trainerPack, sub.round_number).toUpperCase())}</p><h3>${team?.team_name || 'Équipe'}</h3></div><span class="review-self">${delay > 0 ? `+${formatTime(delay)}` : 'dans le temps'}${promptCountLabel}</span></div>
     <div class="production-block"><p class="panel-label">PROMPT</p><p>${escapeHtml(sub.prompt_text || '—')}</p></div>
     <div class="production-block"><p class="panel-label">RÉSULTAT IA</p><p>${escapeHtml(sub.ai_response_text || 'Aucun résultat IA déposé.')}</p></div>
     <div class="evaluation-grid">
@@ -820,7 +952,7 @@ function renderLeaderboard() {
     board.innerHTML = '<p class="muted">Le classement apparaîtra dès qu\'une première production sera notée.</p>';
     return;
   }
-  board.innerHTML = ranking.map((item, index) => `<div class="leader-row"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${item.total}/${item.rounds * 20}</span></div>`).join('');
+  board.innerHTML = ranking.map((item, index) => `<div class="leader-row"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/${ROUND_COUNT} manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${item.total}/${item.rounds * 20}</span></div>`).join('');
 }
 
 function renderRankingPublicationState() {
@@ -849,9 +981,9 @@ async function toggleRankingPublication() {
       alert('Aucune production n\'est encore notée. Notez au moins une équipe avant de publier le classement.');
       return;
     }
-    const incomplete = ranking.filter(item => item.rounds < 2).length;
+    const incomplete = ranking.filter(item => item.rounds < ROUND_COUNT).length;
     const message = state.trainerSession.status === 'finished'
-      ? (incomplete ? `${incomplete} équipe(s) n\'ont pas encore 2 manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
+      ? (incomplete ? `${incomplete} équipe(s) n\'ont pas encore ${ROUND_COUNT} manches notées. Publier quand même le classement ?` : 'Publier le classement final sur les téléphones des participants ?')
       : 'La battle n\'est pas encore terminée. Publier un classement provisoire aux participants ?';
     if (!window.confirm(message)) return;
   }
@@ -869,7 +1001,7 @@ function showProjection(submissionId) {
   const team = state.teams.find(t => t.id === sub.team_id);
   const evaluation = state.evaluations.find(e => e.submission_id === sub.id);
   const promptCountLabel = sub.prompt_count ? `${sub.prompt_count} prompt${sub.prompt_count > 1 ? 's' : ''} · ` : '';
-  document.getElementById('projectionRoundLabel').textContent = `MANCHE ${sub.round_number} · ${challenges[sub.round_number - 1].title}`;
+  document.getElementById('projectionRoundLabel').textContent = `MANCHE ${sub.round_number} · ${scenarioTitleOf(state.trainerPack, sub.round_number)}`;
   document.getElementById('projectionTeamTitle').textContent = team?.team_name || 'Production';
   document.getElementById('projectionPrompt').textContent = sub.prompt_text || '—';
   document.getElementById('projectionResponse').textContent = sub.ai_response_text || 'Aucun résultat IA déposé.';
@@ -890,9 +1022,9 @@ function renderTrainerControls() {
   }
 
   const roundNumber = displayRoundNumber(session);
-  document.getElementById('trainerRound').textContent = `${roundNumber}/2`;
-  document.getElementById('trainerRoundName').textContent = challenges[roundNumber - 1].title;
-  document.getElementById('trainerControlTitle').textContent = `Manche ${roundNumber} — ${challenges[roundNumber - 1].title}`;
+  document.getElementById('trainerRound').textContent = `${roundNumber}/${ROUND_COUNT}`;
+  document.getElementById('trainerRoundName').textContent = scenarioTitleOf(state.trainerPack, roundNumber);
+  document.getElementById('trainerControlTitle').textContent = `Manche ${roundNumber} — ${scenarioTitleOf(state.trainerPack, roundNumber)}`;
 
   if (session.status === 'running') {
     startButton.disabled = true;
@@ -917,7 +1049,7 @@ function renderTrainerControls() {
   // Le formateur doit toujours pouvoir écourter une manche en cours.
   // Le bouton reste donc actif pendant waiting / running / paused.
   nextButton.disabled = session.status === 'finished' || state.trainerTransitionBusy;
-  if (roundNumber >= 2) {
+  if (roundNumber >= ROUND_COUNT) {
     nextButton.textContent = session.status === 'running' || session.status === 'paused'
       ? `⏹ Clôturer la manche ${roundNumber} et terminer la battle`
       : 'Terminer la battle';
@@ -970,7 +1102,7 @@ async function startOrResumeRound() {
         current_round: roundNumber,
         status: 'running',
         round_started_at: new Date().toISOString(),
-        round_duration_seconds: ROUND_SECONDS
+        round_duration_seconds: roundSecondsOf(state.trainerPack, roundNumber)
       });
     }
   } catch (error) {
@@ -1011,15 +1143,16 @@ async function prepareNextRound() {
     if (!freshSession) throw new Error('Session introuvable.');
 
     const current = displayRoundNumber(freshSession);
+    const nextSeconds = roundSecondsOf(state.trainerPack, current + 1);
     const isActive = freshSession.status === 'running' || freshSession.status === 'paused';
 
-    const message = current >= 2
+    const message = current >= ROUND_COUNT
       ? (isActive
           ? `Clôturer la manche ${current} maintenant et terminer la Prompt Battle ? Le chrono sera arrêté immédiatement.`
           : 'Terminer la Prompt Battle ? Les participants verront que la battle est terminée.')
       : (isActive
-          ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s\'arrêtera immédiatement et les participants basculeront sur le prochain briefing.`
-          : `Préparer la manche ${current + 1} ? Le chrono sera remis à 12:00 et les participants basculeront sur le prochain briefing.`);
+          ? `Clôturer la manche ${current} maintenant et préparer la manche ${current + 1} ? Le chrono s\'arrêtera immédiatement et les participants basculeront sur le prochain défi.`
+          : `Préparer la manche ${current + 1} ? Le chrono sera remis à ${formatTime(nextSeconds)} et les participants basculeront sur le prochain défi.`);
 
     // On libère temporairement l'état busy pendant la boîte de dialogue : certains navigateurs
     // recalculent mal l'état d'un bouton désactivé après un confirm() bloquant.
@@ -1031,12 +1164,12 @@ async function prepareNextRound() {
     if (button) {
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
-      button.textContent = current >= 2 ? 'Clôture de la battle…' : `Préparation de la manche ${current + 1}…`;
+      button.textContent = current >= ROUND_COUNT ? 'Clôture de la battle…' : `Préparation de la manche ${current + 1}…`;
     }
 
-    const patch = current >= 2
+    const patch = current >= ROUND_COUNT
       ? { status: 'finished', round_started_at: null, round_duration_seconds: 0 }
-      : { current_round: current + 1, status: 'waiting', round_started_at: null, round_duration_seconds: ROUND_SECONDS };
+      : { current_round: current + 1, status: 'waiting', round_started_at: null, round_duration_seconds: nextSeconds };
 
     const { data: updatedSession, error: updateError } = await db
       .from('sessions')
@@ -1051,10 +1184,10 @@ async function prepareNextRound() {
 
     // Vérification explicite : si le navigateur a raté l'événement Realtime, on relit la session.
     const verified = await refreshTrainerSessionState({ render: false });
-    if (current < 2 && Number(verified.current_round) !== current + 1) {
+    if (current < ROUND_COUNT && Number(verified.current_round) !== current + 1) {
       throw new Error('Le changement de manche n\'a pas été confirmé par la base. Réessayez.');
     }
-    if (current >= 2 && verified.status !== 'finished') {
+    if (current >= ROUND_COUNT && verified.status !== 'finished') {
       throw new Error('La fin de battle n\'a pas été confirmée par la base. Réessayez.');
     }
   } catch (error) {
@@ -1095,8 +1228,8 @@ async function openPublicRanking(silent = false) {
     const scoreLabel = item => `${item.total}/${item.rounds * 20}`;
     const medals = ['🥇', '🥈', '🥉'];
 
-    podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/2 manches notées</small></article>`).join('');
-    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/2 manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d\'être publié. Chargement des notes…</p>';
+    podium.innerHTML = ranking.slice(0, 3).map((item, index) => `<article class="podium-card place-${index + 1} ${item.team.id === state.teamId ? 'own-team' : ''}"><span class="podium-medal">${medals[index]}</span><strong>${escapeHtml(item.team.team_name)}</strong><span>${scoreLabel(item)}</span><small>${item.rounds}/${ROUND_COUNT} manches notées</small></article>`).join('');
+    board.innerHTML = ranking.length ? ranking.map((item, index) => `<div class="leader-row ${item.team.id === state.teamId ? 'own-team' : ''}"><strong>${index + 1}</strong><span>${escapeHtml(item.team.team_name)}${item.team.id === state.teamId ? '<em>Votre équipe</em>' : ''}<span class="leader-detail">${item.rounds}/${ROUND_COUNT} manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span>${scoreLabel(item)}</span></div>`).join('') : '<p class="muted">Le classement vient d\'être publié. Chargement des notes…</p>';
 
     const ownIndex = ranking.findIndex(item => item.team.id === state.teamId);
     if (ownNote) {
@@ -1247,7 +1380,7 @@ async function resetBattle() {
     if (subError) throw subError;
     const { error: teamError } = await db.from('teams').delete().eq('session_id', state.trainerSession.id);
     if (teamError) throw teamError;
-    await updateTrainerSession({ current_round: 0, status: 'waiting', round_started_at: null, round_duration_seconds: ROUND_SECONDS, ranking_published: false });
+    await updateTrainerSession({ current_round: 0, status: 'waiting', round_started_at: null, round_duration_seconds: roundSecondsOf(state.trainerPack, 1), ranking_published: false });
     alert('Session remise à zéro. Le code de session reste identique.');
   } catch (error) {
     console.error(error);
@@ -1294,6 +1427,14 @@ async function restoreTrainerSession() {
       resetTrainerSessionPanel();
       return;
     }
+    try {
+      state.trainerPack = await PromptBattlePacks.loadPack(packIdOfSession(data));
+    } catch (packError) {
+      // La session reste pilotable : seuls les titres de manche et les critères sont affectés. L'erreur est affichée.
+      if (!(packError instanceof PromptBattlePacks.PackError)) throw packError;
+      state.trainerPack = null;
+      showPackError(packError);
+    }
     state.trainerSession = data;
     state.reviewRound = displayRoundNumber(data);
     state.selectedSubmissionId = null;
@@ -1311,10 +1452,10 @@ function resetTrainerSessionPanel() {
   document.getElementById('trainerSessionTitle').textContent = 'Aucune session active';
   document.getElementById('trainerSessionHelp').textContent = 'Créez une session pour générer un code à six caractères.';
   const createButton = document.getElementById('createSessionButton');
-  if (createButton) {
-    createButton.disabled = false;
-    createButton.classList.remove('hidden');
-  }
+  if (createButton) createButton.classList.remove('hidden');
+  document.getElementById('trainerSessionPack')?.classList.add('hidden');
+  setPackPickerVisible(true);
+  updateCreateButton();
 }
 
 async function init() {
