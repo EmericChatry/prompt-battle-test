@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "id": "formateur",
   "title": "Formateurs en santé",
-  "description": "Former, évaluer, accompagner avec l'IA : concevoir un cours en urgence, puis remettre à jour une évaluation écrite.",
+  "description": "Former et évaluer avec l'IA : concevoir un cours en urgence, puis construire un test de connaissances.",
   "scenarios": [
     {
       "id": "formateur-1",
       "title": "Le cours à sauver",
-      "situation": "Vous êtes formateur dans un institut de formation en soins infirmiers. L'intervenant prévu demain a annulé hier : il ne reste que 24 heures. Vous devez assurer à sa place un cours magistral de 2 heures, en amphithéâtre, pour des étudiants de première année. C'est leur premier cours de santé publique et ils n'ont presque aucun apport préalable sur le sujet. Le contenu porte sur les concepts de base de la santé publique, notamment la prévention primaire, secondaire et tertiaire. Vous n'avez aucun diaporama prêt et vous disposez de la soirée pour préparer.",
-      "mission": "Construisez un prompt RCTF permettant à votre IA de concevoir cette séquence de 2 heures : un déroulé minuté, des objectifs pédagogiques, des activités qui cassent le format cours magistral, les supports à prévoir et quelques questions pour vérifier que les étudiants ont compris. L'IA propose, c'est à vous de juger ce qui est réaliste pour un premier contact avec le sujet.",
-      "durationSeconds": 720,
+      "situation": "L'intervenant prévu demain a annulé. Vous le remplacez au pied levé : 2 heures de cours en amphithéâtre sur les bases de la santé publique, dont la prévention primaire, secondaire et tertiaire. Le public, ce sont des étudiants infirmiers de première année, qui n'ont encore rien vu sur le sujet. Vous n'avez aucun support prêt.",
+      "mission": "Obtenez de votre IA un déroulé minuté de ces 2 heures, avec des activités qui ne sont pas du cours magistral.",
+      "durationSeconds": 900,
       "method": [
         "Rôle",
         "Contexte",
@@ -21,26 +21,26 @@
         "criteria": [
           {
             "key": "pertinence",
-            "label": "Pertinence",
-            "question": "Le résultat répond-il réellement au problème posé ?",
+            "label": "Rôle et contexte",
+            "question": "Le prompt donne-t-il un rôle à l'IA et les faits utiles de la situation ?",
             "max": 5
           },
           {
             "key": "precision",
-            "label": "Précision",
-            "question": "Le résultat est-il suffisamment ciblé, concret et peu générique ?",
+            "label": "Tâche",
+            "question": "Le prompt dit-il précisément ce qu'on attend, sans laisser l'IA deviner ?",
             "max": 5
           },
           {
             "key": "context_score",
-            "label": "Contexte",
-            "question": "Le résultat exploite-t-il correctement les éléments de contexte fournis ?",
+            "label": "Format",
+            "question": "Le prompt impose-t-il la forme du résultat (longueur, structure, ton, public) ?",
             "max": 5
           },
           {
             "key": "utility",
-            "label": "Utilité pédagogique",
-            "question": "Le formateur pourrait-il réellement utiliser ou adapter cette production ?",
+            "label": "Progression",
+            "question": "Le prompt final est-il nettement plus complet que le premier, et les améliorations cochées se voient-elles dans le texte ?",
             "max": 5
           }
         ]
@@ -48,10 +48,10 @@
     },
     {
       "id": "formateur-2",
-      "title": "L'évaluation à remettre à jour",
-      "situation": "Votre équipe reprend un devoir écrit à domicile hérité de l'ancien référentiel de formation (ancienne UE 4.6, semestre 3) : la critique d'un article, avec les étapes de la démarche projet. Le sujet date et il laisse peu de place à la réflexion : aujourd'hui, un étudiant peut le faire corriger ou rédiger par une IA en quelques minutes. Le sujet ci-dessous est entièrement fictif et contient volontairement des défauts. Vous cherchez à le rendre plus pertinent aujourd'hui, sans interdire l'IA aux étudiants.",
-      "mission": "Construisez un prompt RCTF qui impose à l'IA des critères de qualité : cohérence de la consigne, critères d'évaluation clairs, exigence qui oblige l'étudiant à réfléchir par lui-même. Faites d'abord critiquer le sujet par l'IA, puis demandez une version améliorée. Dans le champ résultat, collez la version améliorée. Ajoutez à la fin une ligne qui commence par « Défaut oublié ou mal corrigé par l'IA : » et nommez-en un.",
-      "durationSeconds": 720,
+      "title": "Le test à construire",
+      "situation": "Votre cours de santé publique a eu lieu. La semaine prochaine, vous testez les étudiants de première année en début de séance, et vous n'avez pas le temps d'écrire le test vous-même.",
+      "mission": "Obtenez de votre IA un test de 10 QCM avec le corrigé.",
+      "durationSeconds": 900,
       "method": [
         "Rôle",
         "Contexte",
@@ -63,33 +63,33 @@
         "criteria": [
           {
             "key": "pertinence",
-            "label": "Pertinence",
-            "question": "Le résultat répond-il réellement au problème posé ?",
+            "label": "Rôle et contexte",
+            "question": "Le prompt donne-t-il un rôle à l'IA et les faits utiles de la situation ?",
             "max": 5
           },
           {
             "key": "precision",
-            "label": "Précision",
-            "question": "Le résultat est-il suffisamment ciblé, concret et peu générique ?",
+            "label": "Tâche",
+            "question": "Le prompt dit-il précisément ce qu'on attend, sans laisser l'IA deviner ?",
             "max": 5
           },
           {
             "key": "context_score",
-            "label": "Contexte",
-            "question": "Le résultat exploite-t-il correctement les éléments de contexte fournis ?",
+            "label": "Format",
+            "question": "Le prompt impose-t-il la forme du résultat (longueur, structure, ton, public) ?",
             "max": 5
           },
           {
             "key": "utility",
-            "label": "Utilité pédagogique",
-            "question": "Le formateur pourrait-il réellement utiliser ou adapter cette production ?",
+            "label": "Progression",
+            "question": "Le prompt final est-il nettement plus complet que le premier, et les améliorations cochées se voient-elles dans le texte ?",
             "max": 5
           }
         ]
       },
       "material": {
-        "title": "Sujet du devoir (fictif)",
-        "text": "Devoir écrit à domicile, semestre 3.\nÀ rendre sous huit jours, dactylographié, 3 pages maximum (ou 8 pages si votre formateur l'autorise).\n\nArticle fourni en annexe : « La prévention du risque de chute en service de soins de suite », article fictif daté de 2008.\n\nConsigne : analysez ce texte et faites-en une critique à partir des concepts développés dans l'unité d'enseignement. Vous présenterez les étapes de la démarche projet et ferez du lien avec ce qui est écrit dans l'article. En plus, vous donnerez votre avis personnel : positionnez-vous, en tant qu'étudiant infirmier, par rapport à ce qui est écrit. Vous citerez vos sources.\n\nCritères d'évaluation (sur 20) :\n- qualité de la rédaction : orthographe, grammaire (2 points)\n- étapes de la démarche projet : un point par étape (7 points)\n- pertinence de l'analyse et lien avec l'article (6 points)\n- positionnement personnel en tant qu'étudiant infirmier (3 points)\n- bibliographie (2 points)"
+        "title": "À couvrir et à savoir",
+        "text": "Thèmes à couvrir : les trois niveaux de prévention (primaire, secondaire, tertiaire) ; les déterminants de santé ; le dépistage.\nPublic : étudiants infirmiers de première année, qui ont eu 2 heures de cours sur le sujet.\nDurée du test : 15 minutes."
       }
     }
   ]

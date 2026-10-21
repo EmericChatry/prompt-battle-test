@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Prompt Battle</title>
   <meta name="description" content="Prompt Battle : jeu collaboratif pour apprendre à écrire de bons prompts, en formation en santé" />
-  <link rel="stylesheet" href="style.css?v=2.12.0" />
+  <link rel="stylesheet" href="style.css?v=2.13.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -34,7 +34,7 @@
           <div class="hero-copy">
             <p class="eyebrow">FORMATION-ACTION · IA EN SANTÉ</p>
             <h1 class="hero-title">Qui donnera le meilleur brief à l'IA&nbsp;?</h1>
-            <p class="lead">Deux défis, un temps commun et une méthode partagée : <strong>RCTF</strong>. L'objectif n'est pas d'écrire le prompt le plus compliqué, mais d'obtenir le résultat le plus utile.</p>
+            <p class="lead">Deux défis, un temps commun et une méthode partagée : <strong>RCTF</strong>. L'objectif n'est pas d'écrire le prompt le plus long, mais le plus clair et le plus précis.</p>
             <div class="hero-actions">
               <button class="primary" type="button" data-go="join">Rejoindre une partie</button>
               <button class="secondary" type="button" data-go="trainer">Espace formateur</button>
@@ -55,7 +55,7 @@
         <div class="home-cards">
           <article class="info-card"><span class="number">01</span><h2>Construire</h2><p>Structurez votre demande avec RCTF et confrontez vos choix en équipe.</p></article>
           <article class="info-card"><span class="number">02</span><h2>Tester</h2><p>Utilisez l'IA de votre choix : ChatGPT, Claude, Copilot, Gemini ou autre.</p></article>
-          <article class="info-card"><span class="number">03</span><h2>Comparer</h2><p>Déposez votre meilleur prompt et analysez la qualité du résultat obtenu.</p></article>
+          <article class="info-card"><span class="number">03</span><h2>Comparer</h2><p>Déposez votre premier prompt et votre prompt final complet, puis mesurez ce que vous avez amélioré.</p></article>
         </div>
       </section>
 
@@ -97,7 +97,7 @@
           </div>
           <div class="timer-block">
             <span>Temps commun</span>
-            <strong id="timer">12:00</strong>
+            <strong id="timer">15:00</strong>
             <small id="timerMessage">Le formateur lancera le chrono.</small>
           </div>
         </div>
@@ -120,19 +120,39 @@
 
           <div class="column">
             <article class="panel form-panel">
-              <label for="promptInput">Votre prompt final</label>
-              <textarea id="promptInput" rows="9" placeholder="Écrivez ici le prompt que votre équipe souhaite soumettre…"></textarea>
-              <div class="ai-links-row">
-                <button class="tiny" type="button" id="copyPromptButton">📋 Copier le prompt</button>
-                <a class="tiny ai-link" href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT ↗</a>
-                <a class="tiny ai-link" href="https://claude.ai/new" target="_blank" rel="noopener">Claude ↗</a>
-                <a class="tiny ai-link" href="https://gemini.google.com/app" target="_blank" rel="noopener">Gemini ↗</a>
-                <a class="tiny ai-link" href="https://copilot.microsoft.com" target="_blank" rel="noopener">Copilot ↗</a>
-              </div>
-              <label for="resultInput">Résultat obtenu avec votre IA <span>(collez la réponse que vous souhaitez soumettre)</span></label>
-              <textarea id="resultInput" rows="7" placeholder="Collez ici la réponse obtenue dans votre IA…"></textarea>
-              <label for="promptCountInput">Combien de prompts avez-vous rédigés avant cette réponse finale ? <span>(facultatif)</span></label>
-              <input id="promptCountInput" class="number-input" type="number" min="1" inputmode="numeric" placeholder="Ex : 3" />
+              <ol class="steps">
+                <li class="step">
+                  <div class="step-head"><span class="step-number">1</span><div><label for="firstPromptInput">Votre premier prompt</label><p class="step-help">Collez le tout premier message que vous avez envoyé à votre IA pour répondre à la mission.</p></div></div>
+                  <textarea id="firstPromptInput" rows="5" placeholder="Le message tel que vous l'avez envoyé, même s'il était court."></textarea>
+                  <p class="char-count" id="firstPromptCount"></p>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-number">2</span><div><strong class="step-title">Travaillez avec votre IA</strong><p class="step-help">Échangez avec elle autant que nécessaire, avec l'IA de votre choix. Ne collez pas ses réponses ici.</p></div></div>
+                  <div class="ai-links-row">
+                    <a class="tiny ai-link" href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT ↗</a>
+                    <a class="tiny ai-link" href="https://claude.ai/new" target="_blank" rel="noopener">Claude ↗</a>
+                    <a class="tiny ai-link" href="https://gemini.google.com/app" target="_blank" rel="noopener">Gemini ↗</a>
+                    <a class="tiny ai-link" href="https://copilot.microsoft.com" target="_blank" rel="noopener">Copilot ↗</a>
+                  </div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-number">3</span><div><label for="promptInput">Votre prompt final complet</label><p class="step-help">Écrivez le prompt unique que vous enverriez dans une nouvelle conversation pour obtenir directement le bon résultat. Il reprend tout ce que vous avez corrigé en route.</p></div></div>
+                  <p class="step-warning">Ne collez pas la réponse de l'IA : seulement votre prompt.</p>
+                  <textarea id="promptInput" rows="8" placeholder="Votre prompt complet, prêt à être collé dans une nouvelle conversation."></textarea>
+                  <div class="char-row"><p class="char-count" id="promptCount"></p><button class="tiny" type="button" id="copyPromptButton">📋 Copier le prompt</button></div>
+                </li>
+                <li class="step">
+                  <div class="step-head"><span class="step-number">4</span><div><strong class="step-title">Qu'avez-vous amélioré entre les deux ?</strong><p class="step-help">Cochez ce qui a changé entre votre premier prompt et le prompt final.</p></div></div>
+                  <div class="change-options" id="changeOptions">
+                    <label class="change-option"><input type="checkbox" value="role" /> J'ai précisé le rôle</label>
+                    <label class="change-option"><input type="checkbox" value="context" /> J'ai ajouté du contexte</label>
+                    <label class="change-option"><input type="checkbox" value="task" /> J'ai précisé la tâche</label>
+                    <label class="change-option"><input type="checkbox" value="format" /> J'ai imposé un format</label>
+                    <label class="change-option"><input type="checkbox" value="constraint" /> J'ai ajouté une contrainte (longueur, ton, public)</label>
+                    <label class="change-option"><input type="checkbox" value="other" /> Autre amélioration</label>
+                  </div>
+                </li>
+              </ol>
               <div id="participantRoundStatus" class="round-status waiting">Manche prête. Attendez le lancement du formateur.</div><div class="submit-row"><button class="primary" id="submitRound" type="button">En attente du lancement</button><span class="save-state" id="saveState">Non soumis</span></div>
             </article>
           </div>
@@ -144,7 +164,7 @@
           <div>
             <p class="eyebrow">ESPACE FORMATEUR · ACCÈS PAR QR CODE</p>
             <h1>Piloter la Prompt Battle</h1>
-            <p class="muted">Pilotez les manches, consultez les productions, notez les résultats et publiez le classement en temps réel.</p>
+            <p class="muted">Pilotez les manches, lisez les prompts, attribuez des étoiles et publiez le classement et les retours en temps réel.</p>
           </div>
           <div class="trainer-head-actions"><button class="danger-ghost" type="button" id="resetBattle">Remettre la battle à zéro</button><button class="ghost" type="button" data-go="home">← Accueil</button></div>
         </div>
@@ -166,7 +186,14 @@
                 </div>
                 <div class="qr-share-block">
                   <div id="sessionQrCode" class="session-qr" aria-label="QR code pour rejoindre la session"></div>
-                  <div><strong>Scannez pour rejoindre</strong><small>Le QR code ouvre directement cette session. Il ne reste qu'à choisir une équipe.</small></div>
+                  <div><strong>Ou scannez le QR code</strong><small>Pratique sur téléphone. Il ouvre directement cette session : il ne reste qu'à choisir une équipe.</small></div>
+                </div>
+              </div>
+              <div class="join-link-block">
+                <span>Lien à envoyer aux participants (ordinateur)</span>
+                <div class="join-link-row">
+                  <input id="joinLinkInput" class="join-link-input" type="text" readonly aria-label="Lien pour rejoindre la session" />
+                  <button class="secondary" type="button" id="copyJoinLinkButton">Copier le lien</button>
                 </div>
               </div>
             </div>
@@ -181,7 +208,7 @@
         <article class="panel trainer-control-panel">
           <div class="panel-title-row">
             <div><p class="panel-label">PILOTAGE DE LA MANCHE</p><h2 id="trainerControlTitle">Manche 1</h2></div>
-            <div class="trainer-master-timer"><strong id="trainerTimerText">12:00</strong><small id="trainerTimerStatus">Prête à être lancée</small></div>
+            <div class="trainer-master-timer"><strong id="trainerTimerText">15:00</strong><small id="trainerTimerStatus">Prête à être lancée</small></div>
           </div>
           <div class="trainer-control-actions">
             <button class="primary" id="startRoundButton" type="button" disabled>▶ Lancer la manche 1</button>
@@ -192,10 +219,10 @@
         </article>
 
         <div class="trainer-stats">
-          <div class="stat"><span>Équipes</span><strong>8</strong><small>créneaux disponibles</small></div>
+          <div class="stat"><span>Équipes</span><strong>10</strong><small>créneaux disponibles</small></div>
           <div class="stat"><span>Connectées</span><strong id="connectedTeamsCount">0</strong><small id="connectedTeamsLabel">en attente d'une session</small></div>
           <div class="stat"><span>Manche</span><strong id="trainerRound">1/2</strong><small id="trainerRoundName">—</small></div>
-          <div class="stat"><span>Chrono</span><strong id="trainerTimerStat">12:00</strong><small>commun à toutes les équipes</small></div>
+          <div class="stat"><span>Chrono</span><strong id="trainerTimerStat">15:00</strong><small>commun à toutes les équipes</small></div>
         </div>
 
         <div class="submission-summary"><span>Productions reçues pour la manche : <strong id="submittedTeamsCount">0</strong></span><span>Les retards restent acceptés et sont signalés.</span></div>
@@ -209,17 +236,24 @@
             <div class="panel-title-row"><div><p class="panel-label">CLASSEMENT</p><h2>Résultats cumulés</h2></div><span class="publication-badge" id="rankingPublicationBadge">Privé</span></div>
             <div class="leaderboard" id="leaderboard"></div>
             <div class="ranking-publish-box">
-              <p class="note" id="rankingPublicationNote">Le classement est visible uniquement par le formateur tant qu'il n'est pas publié.</p>
-              <button class="primary ranking-publish-button" type="button" id="publishRanking">Publier le classement aux participants</button>
+              <p class="note" id="rankingPublicationNote">Le classement et les retours sont visibles uniquement par le formateur tant qu'ils ne sont pas publiés.</p>
+              <button class="primary ranking-publish-button" type="button" id="publishRanking">Publier le classement et les retours aux participants</button>
             </div>
           </article>
         </div>
+
+        <article class="panel synthesis-panel">
+          <div class="panel-title-row">
+            <div><p class="panel-label">SYNTHÈSE POUR LE DÉBRIEF</p><h2>Ce que les équipes disent avoir amélioré</h2></div>
+          </div>
+          <div class="synthesis-grid" id="debriefSynthesis"><p class="muted">La synthèse apparaîtra dès que des équipes auront soumis leur manche.</p></div>
+        </article>
 
         <article class="panel review-panel">
           <div class="panel-title-row review-heading">
             <div>
               <p class="panel-label">NOTATION FORMATEUR</p>
-              <h2>Consulter et évaluer les productions</h2>
+              <h2>Consulter et noter les prompts</h2>
             </div>
             <div class="round-tabs" id="reviewRoundTabs">
               <button class="tiny round-tab active" type="button" data-review-round="1">Manche 1</button>
@@ -233,7 +267,7 @@
             <div class="review-detail" id="reviewDetail">
               <div class="empty-review">
                 <strong>Sélectionnez une équipe</strong>
-                <span>Vous pourrez lire son prompt, sa réponse IA et attribuer une note sur 20.</span>
+                <span>Vous pourrez lire son premier prompt et son prompt final, attribuer des étoiles et rédiger son retour.</span>
               </div>
             </div>
           </div>
@@ -242,7 +276,7 @@
 
       <section id="ranking" class="screen">
         <div class="section-head">
-          <div><p class="eyebrow">CLASSEMENT PUBLIÉ</p><h1>Résultats de la Prompt Battle</h1><p class="muted">Le classement est calculé à partir des évaluations du formateur, sur les deux manches de la Prompt Battle.</p></div>
+          <div><p class="eyebrow">CLASSEMENT PUBLIÉ</p><h1>Résultats de la Prompt Battle</h1><p class="muted">Les étoiles sont attribuées par le formateur sur vos prompts, pour les deux manches de la Prompt Battle.</p></div>
           <button class="ghost" type="button" data-go="battle">← Retour à ma manche</button>
         </div>
         <article class="panel ranking-public-panel">
@@ -254,14 +288,18 @@
           <div class="leaderboard public-leaderboard" id="publicLeaderboard"></div>
           <p class="own-team-note hidden" id="ownTeamRankingNote"></p>
         </article>
+        <article class="panel own-feedback-panel hidden" id="ownTeamFeedback">
+          <p class="panel-label">LE RETOUR POUR VOTRE ÉQUIPE</p>
+          <div id="ownTeamFeedbackBody"></div>
+        </article>
       </section>
 
       <section id="projection" class="screen">
         <div class="projection-shell">
           <div class="projection-top"><div><p class="eyebrow" id="projectionRoundLabel">MANCHE</p><h1 id="projectionTeamTitle">Production</h1></div><button class="ghost" type="button" data-go="trainer">← Retour formateur</button></div>
           <div class="projection-columns">
-            <article class="panel"><p class="panel-label">PROMPT DE L'ÉQUIPE</p><div class="projection-text" id="projectionPrompt"></div></article>
-            <article class="panel"><p class="panel-label">RÉSULTAT OBTENU AVEC L'IA</p><div class="projection-text" id="projectionResponse"></div></article>
+            <article class="panel"><p class="panel-label">PREMIER PROMPT</p><div class="projection-text" id="projectionFirstPrompt"></div></article>
+            <article class="panel"><p class="panel-label">PROMPT FINAL COMPLET</p><div class="projection-text" id="projectionPrompt"></div></article>
           </div>
           <div class="projection-score" id="projectionScore"></div>
         </div>
@@ -277,7 +315,7 @@
             <div><strong id="finalRankingStatus">Classement en attente</strong><p>Restez sur cet écran : les résultats s'afficheront automatiquement dès leur publication.</p></div>
           </div>
           <button class="primary hidden" type="button" id="finalRankingButton">Ouvrir le classement</button><button class="secondary" type="button" id="refreshFinalState">Actualiser l'état</button>
-          <div class="final-highlight"><span>⚡</span><div><strong>En cas d'égalité</strong><p>60 secondes pour raccourcir votre meilleur résultat de moitié sans perdre l'essentiel.</p></div></div>
+          <div class="final-highlight"><span>💡</span><div><strong>Pour le débrief</strong><p>Repérez dans le prompt d'une autre équipe une idée que vous n'aviez pas eue.</p></div></div>
         </div>
       </section>
     </main>
@@ -287,12 +325,12 @@
       <button class="tiny" type="button" id="openRankingToast">Voir</button>
     </div>
 
-    <footer><span>Prompt Battle · Formation en santé</span><span>V2.12.0 · paquets de scénarios</span></footer>
+    <footer><span>Prompt Battle · Formation en santé</span><span>V2.13.0 · prompt initial, prompt complet et étoiles</span></footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="packs.js?v=2.12.0"></script>
-  <script src="script.js?v=2.12.0"></script>
+  <script src="packs.js?v=2.13.0"></script>
+  <script src="script.js?v=2.13.0"></script>
 </body>
 </html>
