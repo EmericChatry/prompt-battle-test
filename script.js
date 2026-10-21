@@ -56,6 +56,7 @@ const state = {
   teams: [],
   submissions: [],
   evaluations: [],
+  feedback: [],
   reviewRound: 1,
   selectedSubmissionId: null,
   team: 1,
@@ -434,6 +435,17 @@ async function fetchEvaluations(sessionId) {
   return data || [];
 }
 
+// Retours écrits du formateur (table team_feedback). La base ne renvoie à un participant que le retour de son équipe,
+// et seulement après la publication. Une erreur ne doit pas bloquer la notation : on renvoie alors une liste vide.
+async function fetchFeedback(sessionId) {
+  const { data, error } = await db.from('team_feedback').select('*').eq('session_id', sessionId);
+  if (error) {
+    console.debug('Retours indisponibles', error);
+    return [];
+  }
+  return data || [];
+}
+
 async function loadParticipantTeams() {
   if (!state.participantSession) return;
   state.teams = await fetchTeamsForJoin(state.participantSession.id);
@@ -487,14 +499,16 @@ function startTrainerSyncLoop() {
 
 async function refreshTrainerData() {
   if (!state.trainerSession) return;
-  const [teams, submissions, evaluations] = await Promise.all([
+  const [teams, submissions, evaluations, feedback] = await Promise.all([
     fetchTeams(state.trainerSession.id),
     fetchSubmissions(state.trainerSession.id),
-    fetchEvaluations(state.trainerSession.id)
+    fetchEvaluations(state.trainerSession.id),
+    fetchFeedback(state.trainerSession.id)
   ]);
   state.teams = teams;
   state.submissions = submissions;
   state.evaluations = evaluations;
+  state.feedback = feedback;
   if (!state.reviewRound) state.reviewRound = displayRoundNumber(state.trainerSession);
   buildTrainerTeams();
   renderReviewList();
@@ -963,6 +977,7 @@ function renderReviewDetail(submissionId) {
   }
   const team = state.teams.find(t => t.id === sub.team_id);
   const evaluation = state.evaluations.find(e => e.submission_id === sub.id);
+  const feedback = state.feedback.find(f => f.team_id === sub.team_id && f.round_number === sub.round_number);
   const values = evaluation ? [evaluation.pertinence, evaluation.precision, evaluation.context_score, evaluation.utility] : [3, 3, 3, 3];
   const criteria = (scenarioOf(state.trainerPack, sub.round_number)?.grading.criteria || []).map(c => [c.label, c.question]);
   const delay = Number(sub.delay_seconds || 0);
@@ -978,8 +993,8 @@ function renderReviewDetail(submissionId) {
     <div class="feedback-edit">
       <p class="panel-label">RETOUR POUR L'ÉQUIPE · VISIBLE À LA PUBLICATION</p>
       <div class="feedback-columns">
-        <div><label>Points forts</label>${feedbackFieldsHtml('feedback-strength', evaluation?.feedback_strengths, 2, 'Point fort')}</div>
-        <div><label>Axes d'amélioration</label>${feedbackFieldsHtml('feedback-axis', evaluation?.feedback_axes, 2, 'Axe')}</div>
+        <div><label>Points forts</label>${feedbackFieldsHtml('feedback-strength', feedback?.strengths, 2, 'Point fort')}</div>
+        <div><label>Axes d'amélioration</label>${feedbackFieldsHtml('feedback-axis', feedback?.axes, 2, 'Axe')}</div>
       </div>
     </div>
     <div class="evaluation-footer"><div class="trainer-score-total"><span>Moyenne</span><strong id="trainerEvalTotal">${average}</strong><small>★ sur 5</small></div><div class="eval-actions"><button class="secondary" type="button" id="projectSubmissionButton">Afficher en grand</button><button class="primary" type="button" id="saveTrainerEvaluation">${evaluation ? 'Mettre à jour la note' : 'Enregistrer la note'}</button></div></div>
@@ -1009,6 +1024,29 @@ function readFeedbackFields(selector) {
   return [...document.querySelectorAll(selector)].map(el => el.value.trim()).filter(Boolean);
 }
 
+// Le retour écrit est stocké à part des notes (table team_feedback) pour que la base le réserve à l'équipe concernée.
+async function saveTeamFeedback(sub, strengths, axes) {
+  const existing = state.feedback.find(f => f.team_id === sub.team_id && f.round_number === sub.round_number);
+  if (!existing && !strengths.length && !axes.length) return;
+  const payload = {
+    session_id: state.trainerSession.id,
+    team_id: sub.team_id,
+    round_number: sub.round_number,
+    strengths,
+    axes,
+    written_by: state.userId,
+    updated_at: new Date().toISOString()
+  };
+  const result = existing
+    ? await db.from('team_feedback').update(payload).eq('id', existing.id).select().single()
+    : await db.from('team_feedback').insert(payload).select().single();
+  if (result.error) {
+    const failure = new Error(`La note est enregistrée, mais pas le retour écrit : ${result.error.message}`);
+    failure.feedbackOnly = true;
+    throw failure;
+  }
+}
+
 async function saveTrainerEvaluation(submissionId) {
   const sub = state.submissions.find(s => s.id === submissionId);
   if (!sub || !state.trainerSession) return;
@@ -1023,8 +1061,6 @@ async function saveTrainerEvaluation(submissionId) {
     precision: values[1],
     context_score: values[2],
     utility: values[3],
-    feedback_strengths: readFeedbackFields('.feedback-strength'),
-    feedback_axes: readFeedbackFields('.feedback-axis'),
     evaluated_by: state.userId,
     evaluated_at: new Date().toISOString()
   };
@@ -1037,13 +1073,19 @@ async function saveTrainerEvaluation(submissionId) {
       ? await db.from('trainer_evaluations').update(payload).eq('id', existing.id).select().single()
       : await db.from('trainer_evaluations').insert(payload).select().single();
     if (result.error) throw result.error;
+    await saveTeamFeedback(sub, readFeedbackFields('.feedback-strength'), readFeedbackFields('.feedback-axis'));
     await refreshTrainerData();
     state.selectedSubmissionId = sub.id;
     renderReviewList();
     renderReviewDetail(sub.id);
   } catch (error) {
     console.error(error);
-    alert(`Impossible d\'enregistrer la note : ${error.message}`);
+    if (error.feedbackOnly) {
+      alert(error.message);
+      await refreshTrainerData();
+    } else {
+      alert(`Impossible d\'enregistrer la note : ${error.message}`);
+    }
     button.disabled = false;
     button.textContent = 'Enregistrer la note';
   }
@@ -1358,7 +1400,7 @@ async function prepareNextRound() {
 }
 
 // Retour écrit par le formateur pour l'équipe du participant : étoiles par critère, points forts, axes.
-function renderOwnTeamFeedback(evaluations) {
+function renderOwnTeamFeedback(evaluations, feedbackRows) {
   const panel = document.getElementById('ownTeamFeedback');
   const body = document.getElementById('ownTeamFeedbackBody');
   if (!panel || !body) return;
@@ -1371,8 +1413,10 @@ function renderOwnTeamFeedback(evaluations) {
     const scenario = scenarioOf(state.participantPack, evaluation.round_number);
     const criteria = scenario?.grading?.criteria || [];
     const values = [evaluation.pertinence, evaluation.precision, evaluation.context_score, evaluation.utility];
-    const strengths = Array.isArray(evaluation.feedback_strengths) ? evaluation.feedback_strengths : [];
-    const axes = Array.isArray(evaluation.feedback_axes) ? evaluation.feedback_axes : [];
+    // Le filtre par équipe est une double sécurité : la base ne renvoie déjà que le retour de l'équipe du participant.
+    const written = feedbackRows.find(f => f.team_id === state.teamId && f.round_number === evaluation.round_number);
+    const strengths = Array.isArray(written?.strengths) ? written.strengths : [];
+    const axes = Array.isArray(written?.axes) ? written.axes : [];
     const comments = list('POINTS FORTS', strengths, 'good') + list('À AMÉLIORER', axes, 'axis');
     return `<section class="feedback-round">
       <h3>Manche ${evaluation.round_number} · ${escapeHtml(scenario?.title || '')}</h3>
@@ -1391,9 +1435,10 @@ async function openPublicRanking(silent = false) {
   if (state.rankingOpenInProgress) return;
   state.rankingOpenInProgress = true;
   try {
-    const [teams, evaluations] = await Promise.all([
+    const [teams, evaluations, feedback] = await Promise.all([
       fetchTeams(state.participantSession.id),
-      fetchEvaluations(state.participantSession.id)
+      fetchEvaluations(state.participantSession.id),
+      fetchFeedback(state.participantSession.id)
     ]);
     const ranking = rankTeams(teams, evaluations);
 
@@ -1411,7 +1456,7 @@ async function openPublicRanking(silent = false) {
       ownNote.classList.toggle('hidden', ownIndex < 0);
       if (ownIndex >= 0) ownNote.textContent = `Votre équipe est classée ${ranking[ownIndex].rank}${ranking[ownIndex].rank === 1 ? 're' : 'e'} avec ${scoreLabel(ranking[ownIndex])}.`;
     }
-    renderOwnTeamFeedback(evaluations);
+    renderOwnTeamFeedback(evaluations, feedback);
     showScreen('ranking');
     document.getElementById('rankingToast')?.classList.add('hidden');
   } catch (error) {
