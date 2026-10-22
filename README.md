@@ -11,7 +11,7 @@ L'application est unique. Le contenu des 2 manches change selon la formation cho
 - 2 manches de 15 minutes, chrono commun, pause et reprise, clôture anticipée.
 - Chaque équipe dépose son premier prompt, son prompt final complet (celui qu'elle enverrait dans une nouvelle conversation) et coche ce qu'elle a amélioré entre les deux. Les réponses de l'IA ne sont plus déposées.
 - Le formateur note le prompt en étoiles (4 critères de 1 à 5 : Rôle et contexte, Tâche, Format, Progression) et peut rédiger un retour par équipe (2 points forts, 2 axes). Un écran de synthèse montre ce que les équipes disent avoir amélioré.
-- La publication du classement rend visibles les étoiles et les retours : chaque équipe lit le sien sur son écran.
+- La publication du classement rend visibles le total de chaque équipe, et pour chaque équipe son propre détail par critère et ses retours.
 
 ## Paquets de scénarios
 
@@ -41,16 +41,20 @@ Pour ajouter une formation : créer `scenarios/mon-paquet.json`, puis l'ajouter 
 Le projet Supabase est partagé entre le test et la production. Toute modification doit rester compatible avec la version en ligne.
 
 - V2.12.0 : colonne `sessions.pack_id` (valeur par défaut `managers`) et fonction `get_session_for_join`, qui renvoie `pack_id`. Voir `supabase-v2.12.sql`. Une session sans `pack_id` est traitée comme `managers`.
-- V2.13.0 : colonnes `submissions.first_prompt_text` et `submissions.changes_made`, colonnes `trainer_evaluations.feedback_strengths` et `trainer_evaluations.feedback_axes`, contrainte `teams.team_slot` portée de 8 à 10. Voir `supabase-v2.13.sql` (à appliquer avant de mettre la V2.13.0 en ligne).
+- V2.13.0 : colonnes `submissions.first_prompt_text` et `submissions.changes_made`, contrainte `teams.team_slot` portée de 8 à 10, table `team_feedback` (retours écrits, lisibles par le formateur et par l'équipe concernée après publication). Voir `supabase-v2.13.sql` (appliqué le 22 octobre 2026).
+- V2.13b : fonction `get_ranking_totals(session)`, qui renvoie uniquement (équipe, manche, total). Additive, sans effet sur la V2.12.0. Voir `supabase-v2.13b.sql`.
+- V2.13c : verrou. La lecture de `trainer_evaluations` est limitée au formateur et à l'équipe concernée (après publication). **Incompatible avec la V2.12.0** : un participant de la V2.12.0 ne verrait plus que sa propre équipe dans le classement. À lancer seulement quand la V2.13 est en ligne partout où le formateur anime. Voir `supabase-v2.13c.sql`, qui contient aussi la règle d'origine pour revenir en arrière.
 
 Le total de `trainer_evaluations` est une colonne calculée (somme des 4 critères). Les étoiles affichées sont ce total divisé par 4.
+
+Visibilité des notes (une fois la V2.13c appliquée) : le classement montre à chaque participant le total de toutes les équipes (via `get_ranking_totals`). Le détail par critère et les commentaires ne sont lisibles que pour sa propre équipe. Le formateur voit tout, y compris le détail par critère de chaque équipe dans son classement. L'écran du classement participant se relit toutes les 20 secondes, car la base ne signale à un participant que les changements de sa propre équipe.
 
 ## Fichiers
 
 - `index.html`, `style.css`, `script.js` : l'application.
 - `packs.js` : chargement et validation des paquets.
 - `scenarios/` : l'index et les paquets.
-- `supabase-v2.4.sql`, `supabase-v2.12.sql`, `supabase-v2.13.sql` : migrations de référence.
+- `supabase-v2.4.sql`, `supabase-v2.12.sql`, `supabase-v2.13.sql`, `supabase-v2.13b.sql`, `supabase-v2.13c.sql` : migrations de référence.
 
 ## Reporté à une version ultérieure
 

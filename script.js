@@ -435,6 +435,25 @@ async function fetchEvaluations(sessionId) {
   return data || [];
 }
 
+// Classement côté participant : seuls les totaux (équipe, manche, total) sont lus pour toutes les équipes,
+// par la fonction get_ranking_totals (supabase-v2.13b.sql). Le détail par critère n'est lu que pour sa propre équipe.
+// Si la fonction n'existe pas encore, on retombe sur la lecture directe (comportement V2.12).
+async function fetchRankingTotals(sessionId) {
+  const { data, error } = await db.rpc('get_ranking_totals', { p_session_id: sessionId });
+  if (error) {
+    console.debug('Totaux du classement indisponibles, lecture directe', error);
+    return fetchEvaluations(sessionId);
+  }
+  return data || [];
+}
+
+async function fetchOwnEvaluations(sessionId, teamId) {
+  if (!teamId) return [];
+  const { data, error } = await db.from('trainer_evaluations').select('*').eq('session_id', sessionId).eq('team_id', teamId).order('round_number');
+  if (error) throw error;
+  return data || [];
+}
+
 // Retours écrits du formateur (table team_feedback). La base ne renvoie à un participant que le retour de son équipe,
 // et seulement après la publication. Une erreur ne doit pas bloquer la notation : on renvoie alors une liste vide.
 async function fetchFeedback(sessionId) {
@@ -1119,7 +1138,17 @@ function renderLeaderboard() {
     board.innerHTML = '<p class="muted">Le classement apparaîtra dès qu\'un premier prompt sera noté.</p>';
     return;
   }
-  board.innerHTML = ranking.map(item => `<div class="leader-row"><strong>${item.rank}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/${ROUND_COUNT} manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span class="leader-stars">${starsLabel(item.total, item.rounds)}</span></div>`).join('');
+  // Côté formateur : le total, puis le détail par critère (moyenne des manches notées de l'équipe).
+  const criteria = scenarioOf(state.trainerPack, 1)?.grading?.criteria || [];
+  const keys = ['pertinence', 'precision', 'context_score', 'utility'];
+  board.innerHTML = ranking.map(item => {
+    const evals = state.evaluations.filter(e => e.team_id === item.team.id);
+    const detail = criteria.map((c, i) => {
+      const average = evals.reduce((sum, e) => sum + Number(e[keys[i]] || 0), 0) / (evals.length || 1);
+      return `<li><span>${escapeHtml(c.label)}</span><span class="stars">${starString(average)} ${formatStarValue(average)}</span></li>`;
+    }).join('');
+    return `<div class="leader-row has-detail"><strong>${item.rank}</strong><span>${escapeHtml(item.team.team_name)}<span class="leader-detail">${item.rounds}/${ROUND_COUNT} manche${item.rounds > 1 ? 's' : ''} notée${item.rounds > 1 ? 's' : ''}</span></span><span class="leader-stars">${starsLabel(item.total, item.rounds)}</span><ul class="leader-criteria">${detail}</ul></div>`;
+  }).join('');
 }
 
 // Ce que les équipes disent avoir amélioré, manche par manche : matière du débrief général.
@@ -1435,12 +1464,13 @@ async function openPublicRanking(silent = false) {
   if (state.rankingOpenInProgress) return;
   state.rankingOpenInProgress = true;
   try {
-    const [teams, evaluations, feedback] = await Promise.all([
+    const [teams, totals, ownEvaluations, feedback] = await Promise.all([
       fetchTeams(state.participantSession.id),
-      fetchEvaluations(state.participantSession.id),
+      fetchRankingTotals(state.participantSession.id),
+      fetchOwnEvaluations(state.participantSession.id, state.teamId),
       fetchFeedback(state.participantSession.id)
     ]);
-    const ranking = rankTeams(teams, evaluations);
+    const ranking = rankTeams(teams, totals);
 
     const board = document.getElementById('publicLeaderboard');
     const podium = document.getElementById('publicPodium');
@@ -1456,9 +1486,10 @@ async function openPublicRanking(silent = false) {
       ownNote.classList.toggle('hidden', ownIndex < 0);
       if (ownIndex >= 0) ownNote.textContent = `Votre équipe est classée ${ranking[ownIndex].rank}${ranking[ownIndex].rank === 1 ? 're' : 'e'} avec ${scoreLabel(ranking[ownIndex])}.`;
     }
-    renderOwnTeamFeedback(evaluations, feedback);
+    renderOwnTeamFeedback(ownEvaluations, feedback);
     showScreen('ranking');
     document.getElementById('rankingToast')?.classList.add('hidden');
+    startRankingRefresh();
   } catch (error) {
     console.error(error);
     if (!silent) alert(`Impossible de charger le classement : ${error.message}`);
@@ -1466,6 +1497,16 @@ async function openPublicRanking(silent = false) {
   } finally {
     state.rankingOpenInProgress = false;
   }
+}
+
+// La base ne prévient un participant que des changements de notes de sa propre équipe.
+// Tant que l'écran du classement est ouvert, on le relit donc toutes les 20 secondes pour suivre les autres équipes.
+function startRankingRefresh() {
+  if (state.rankingRefreshTimer) return;
+  state.rankingRefreshTimer = setInterval(() => {
+    const onRanking = document.querySelector('.screen.active')?.id === 'ranking';
+    if (onRanking && state.participantSession?.ranking_published && !document.hidden) openPublicRanking(true);
+  }, 20000);
 }
 
 function renderParticipantRankingAvailability() {

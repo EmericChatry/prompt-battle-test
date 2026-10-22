@@ -1,5 +1,5 @@
 -- Prompt Battle V2.13 : premier prompt, prompt complet, améliorations cochées, retours aux équipes, 10 équipes.
--- NON APPLIQUÉ : à montrer au formateur, puis à lancer dans le SQL Editor de Supabase.
+-- APPLIQUÉ le 2026-10-22 dans le SQL Editor de Supabase (sans erreur). Suite : supabase-v2.13b.sql et supabase-v2.13c.sql.
 --
 -- Additif : compatible avec la V2.12.0 en ligne (qui n'utilise ni ces colonnes, ni cette table,
 -- ni les emplacements 9 et 10). Les colonnes ajoutées ont une valeur par défaut, donc les insertions
