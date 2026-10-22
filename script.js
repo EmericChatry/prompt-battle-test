@@ -1487,7 +1487,8 @@ async function openPublicRanking(silent = false) {
       if (ownIndex >= 0) ownNote.textContent = `Votre équipe est classée ${ranking[ownIndex].rank}${ranking[ownIndex].rank === 1 ? 're' : 'e'} avec ${scoreLabel(ranking[ownIndex])}.`;
     }
     renderOwnTeamFeedback(ownEvaluations, feedback);
-    showScreen('ranking');
+    // Un rafraîchissement ne doit pas ramener la page en haut : on ne change d'écran que si on n'y est pas déjà.
+    if (document.querySelector('.screen.active')?.id !== 'ranking') showScreen('ranking');
     document.getElementById('rankingToast')?.classList.add('hidden');
     startRankingRefresh();
   } catch (error) {
